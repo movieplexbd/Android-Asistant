@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.speech.RecognitionListener
 import android.speech.SpeechRecognizer
@@ -84,7 +85,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Assistant Pro Active")
             .setContentText("Learning and helping in the background...")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pendingIntent)
             .build()
     }
