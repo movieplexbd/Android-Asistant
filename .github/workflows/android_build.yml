@@ -25,7 +25,7 @@ jobs:
     - name: Setup Gradle Wrapper
       run: |
         if [ ! -f gradlew ]; then
-          gradle wrapper --gradle-version 8.5
+          gradle wrapper --gradle-version 8.2
         fi
         chmod +x gradlew
       
