@@ -19,6 +19,7 @@ import com.assistant.android.ai.PromptEngine
 import com.assistant.android.automation.ActionExecutor
 import com.assistant.android.memory.AppDatabase
 import com.assistant.android.memory.MemoryRepository
+import com.assistant.android.memory.entity.History
 import com.assistant.android.voice.SpeechRecognizerManager
 import com.assistant.android.voice.TTSManager
 import kotlinx.coroutines.CoroutineScope
@@ -44,34 +45,29 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
 
         speechRecognizerManager = SpeechRecognizerManager(this, this)
         ttsManager = TTSManager(this, this)
-        geminiClient = GeminiClient(getString(R.string.gemini_api_key)) // API Key from resources
+        geminiClient = GeminiClient(getString(R.string.gemini_api_key))
         actionExecutor = ActionExecutor(this)
         memoryRepository = MemoryRepository(AppDatabase.getDatabase(this))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d("ForegroundService", "ForegroundService started")
-        // Start listening for commands after wake word detection
         speechRecognizerManager.startListening()
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         super.onDestroy()
         speechRecognizerManager.destroy()
         ttsManager.shutdown()
-        Log.d("ForegroundService", "ForegroundService destroyed")
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
-                "Assistant Service Channel",
+                "Assistant Pro Service",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -80,123 +76,71 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
     }
 
     private fun getNotification(): Notification {
-        val notificationIntent = Intent(this, Class.forName("com.assistant.android.ui.MainActivity")) // Assuming MainActivity is the entry point
+        val notificationIntent = Intent(this, Class.forName("com.assistant.android.ui.MainActivity"))
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE
         )
 
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("AI Assistant Running")
-            .setContentText("Listening for commands...")
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Replace with your app icon
+            .setContentTitle("Assistant Pro Active")
+            .setContentText("Learning and helping in the background...")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
             .build()
-    }
-
-    // RecognitionListener implementations
-    override fun onReadyForSpeech(params: Bundle?) {
-        Log.d("ForegroundService", "onReadyForSpeech")
-    }
-
-    override fun onBeginningOfSpeech() {
-        Log.d("ForegroundService", "onBeginningOfSpeech")
-    }
-
-    override fun onRmsChanged(rmsdB: Float) {
-        // Log.d("ForegroundService", "onRmsChanged: $rmsdB")
-    }
-
-    override fun onBufferReceived(buffer: ByteArray?) {
-        Log.d("ForegroundService", "onBufferReceived")
-    }
-
-    override fun onEndOfSpeech() {
-        Log.d("ForegroundService", "onEndOfSpeech")
-    }
-
-    override fun onError(error: Int) {
-        val errorMessage = when (error) {
-            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-            SpeechRecognizer.ERROR_CLIENT -> "Other client side errors"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-            SpeechRecognizer.ERROR_NETWORK -> "Network related errors"
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network operation timed out"
-            SpeechRecognizer.ERROR_NO_MATCH -> "No recognition result matched"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "SpeechRecognizer service is busy"
-            SpeechRecognizer.ERROR_SERVER -> "Server sends error status"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
-            else -> "Unknown speech recognition error"
-        }
-        Log.e("ForegroundService", "Speech recognition error: $errorMessage")
-        // Restart listening after an error
-        speechRecognizerManager.startListening()
     }
 
     override fun onResults(results: Bundle?) {
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (!matches.isNullOrEmpty()) {
-            val spokenText = matches[0]
-            Log.d("ForegroundService", "Speech recognized: $spokenText")
-            processCommand(spokenText)
+            processCommand(matches[0])
         }
-        // Restart listening after processing results
         speechRecognizerManager.startListening()
-    }
-
-    override fun onPartialResults(partialResults: Bundle?) {
-        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        if (!matches.isNullOrEmpty()) {
-            val partialText = matches[0]
-            Log.d("ForegroundService", "Partial speech recognized: $partialText")
-            // You can update UI with partial results if needed
-        }
-    }
-
-    override fun onEvent(eventType: Int, params: Bundle?) {
-        Log.d("ForegroundService", "onEvent: $eventType")
-    }
-
-    // TTSManager.OnInitListener implementation
-    override fun onTTSInitialized(success: Boolean) {
-        if (success) {
-            Log.d("ForegroundService", "TTS initialized successfully")
-        } else {
-            Log.e("ForegroundService", "TTS initialization failed")
-        }
     }
 
     private fun processCommand(command: String) {
         CoroutineScope(Dispatchers.IO).launch {
-            // Retrieve memory data (example: last 5 history items)
-            val recentHistory = memoryRepository.getAllHistory().takeLast(5).joinToString("\n") { it.command + ": " + it.aiResponse }
-            val prompt = PromptEngine.generatePrompt(command, recentHistory)
+            val memoryData = memoryRepository.getAllHistory().takeLast(10).joinToString("\n") { 
+                "User: ${it.command} | AI: ${it.aiResponse}" 
+            }
+            val prompt = PromptEngine.generatePrompt(command, memoryData)
             val geminiResponse = geminiClient.getGeminiResponse(prompt)
 
             geminiResponse?.let {
                 val jsonResponse = PromptEngine.parseGeminiResponse(it)
-                jsonResponse?.let {
-                    val intent = it.optString("intent")
-                    val target = it.optString("target")
-                    val message = it.optString("message")
-                    val time = it.optString("time")
-                    val reply = it.optString("reply")
+                jsonResponse?.let { json ->
+                    val intent = json.optString("intent")
+                    val target = json.optString("target")
+                    val message = json.optString("message")
+                    val time = json.optString("time")
+                    val reply = json.optString("reply")
+                    val proactive = json.optString("proactive_suggestion")
 
-                    // Store history
-                    memoryRepository.insertHistory(History(command = command, aiResponse = it.toString(), timestamp = System.currentTimeMillis()))
+                    memoryRepository.insertHistory(History(command = command, aiResponse = reply, timestamp = System.currentTimeMillis()))
 
                     if (actionExecutor.executeAction(intent, target, message, time)) {
-                        ttsManager.speak(reply.ifEmpty { "Action completed." })
+                        ttsManager.speak(reply)
+                        if (proactive.isNotEmpty()) {
+                            Log.d("Proactive", "Suggesting: $proactive")
+                            // Logic to show proactive suggestion on UI
+                        }
                     } else {
-                        ttsManager.speak(reply.ifEmpty { "I couldn't perform that action." })
+                        ttsManager.speak(reply.ifEmpty { "I'm on it." })
                     }
                 } ?: run {
-                    Log.e("ForegroundService", "Failed to parse Gemini JSON response: $it")
-                    ttsManager.speak("I'm sorry, I couldn't understand that. Please try again.")
+                    ttsManager.speak(it) // Fallback to raw text if not JSON
                 }
-            } ?: run {
-                Log.e("ForegroundService", "Gemini response was null")
-                ttsManager.speak("I'm having trouble connecting to my brain. Please check your internet connection.")
             }
         }
     }
+
+    // Other RecognitionListener stubs...
+    override fun onReadyForSpeech(params: Bundle?) {}
+    override fun onBeginningOfSpeech() {}
+    override fun onRmsChanged(rmsdB: Float) {}
+    override fun onBufferReceived(buffer: ByteArray?) {}
+    override fun onEndOfSpeech() {}
+    override fun onError(error: Int) { speechRecognizerManager.startListening() }
+    override fun onPartialResults(partialResults: Bundle?) {}
+    override fun onEvent(eventType: Int, params: Bundle?) {}
+    override fun onTTSInitialized(success: Boolean) {}
 }

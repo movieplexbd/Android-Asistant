@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,71 +7,88 @@
     android:background="?attr/colorSurface"
     tools:context=".ui.MainActivity">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        app:title="Android Assistant"
-        app:titleTextColor="?attr/colorOnPrimary"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_height="wrap_content">
 
-    <com.airbnb.android.lottie.LottieAnimationView
-        android:id="@+id/aiAnimation"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        app:lottie_autoPlay="true"
-        app:lottie_loop="true"
-        app:lottie_rawRes="@raw/ai_assistant_wave"
-        app:layout_constraintBottom_toTopOf="@+id/statusCard"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:title="Android Assistant Pro"
+            app:titleTextColor="?attr/colorOnPrimary" />
+    </com.google.android.material.appbar.AppBarLayout>
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/statusCard"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:layout_constraintBottom_toTopOf="@+id/voiceButton"
-        app:layout_constraintTop_toBottomOf="@+id/aiAnimation">
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <LinearLayout
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/chatRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:padding="8dp"
+            android:clipToPadding="false"
+            app:layout_constraintBottom_toTopOf="@+id/inputCard"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <com.airbnb.android.lottie.LottieAnimationView
+            android:id="@+id/aiAnimation"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_marginBottom="16dp"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="true"
+            app:lottie_rawRes="@raw/ai_assistant_wave"
+            app:layout_constraintBottom_toTopOf="@+id/inputCard"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/inputCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_margin="16dp"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="8dp"
+            app:layout_constraintBottom_toBottomOf="parent">
 
-            <TextView
-                android:id="@+id/statusTitle"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Assistant Status"
-                android:textAppearance="?attr/textAppearanceHeadline6" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="4dp">
 
-            <TextView
-                android:id="@+id/statusTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Ready to help"
-                android:textAppearance="?attr/textAppearanceBody1" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/voiceButton"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:icon="@android:drawable/ic_btn_speak_now"
+                    app:iconSize="28dp" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/voiceButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        android:padding="16dp"
-        android:text="Start Assistant"
-        app:cornerRadius="28dp"
-        app:icon="@android:drawable/ic_btn_speak_now"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+                <TextView
+                    android:id="@+id/statusTextView"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Tap to speak..."
+                    android:textAppearance="?attr/textAppearanceBodyLarge" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/cameraButton"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:icon="@android:drawable/ic_menu_camera"
+                    app:iconSize="28dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

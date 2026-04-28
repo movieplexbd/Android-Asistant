@@ -1,5 +1,6 @@
 package com.assistant.android.ai
 
+import android.graphics.Bitmap
 import android.util.Log
 import com.google.generativeai.GenerativeModel
 import com.google.generativeai.type.BlockThreshold
@@ -9,6 +10,7 @@ import com.google.generativeai.type.Tool
 import com.google.generativeai.type.defineFunction
 import com.google.generativeai.type.Schema
 import com.google.generativeai.type.generationConfig
+import com.google.generativeai.type.content
 
 class GeminiClient(private val apiKey: String) {
 
@@ -56,7 +58,7 @@ class GeminiClient(private val apiKey: String) {
         )
     )
 
-    private val generativeModel: GenerativeModel by lazy {
+    private val textModel: GenerativeModel by lazy {
         GenerativeModel(
             modelName = "gemini-1.5-flash",
             apiKey = apiKey,
@@ -76,14 +78,18 @@ class GeminiClient(private val apiKey: String) {
         )
     }
 
+    private val visionModel: GenerativeModel by lazy {
+        GenerativeModel(
+            modelName = "gemini-1.5-flash",
+            apiKey = apiKey
+        )
+    }
+
     suspend fun getGeminiResponse(prompt: String): String? {
         return try {
-            val response = generativeModel.generateContent(prompt)
-            // Handle function calls if any
+            val response = textModel.generateContent(prompt)
             val functionCalls = response.candidates.first().content.parts.filterIsInstance<com.google.generativeai.type.FunctionCallPart>()
             if (functionCalls.isNotEmpty()) {
-                // For now, we return the function call as a JSON-like string for the service to handle
-                // In a full implementation, we would execute the function and send the result back to Gemini
                 val call = functionCalls.first()
                 "{\"function\": \"${call.name}\", \"args\": ${call.args}}"
             } else {
@@ -91,6 +97,20 @@ class GeminiClient(private val apiKey: String) {
             }
         } catch (e: Exception) {
             Log.e("GeminiClient", "Error getting Gemini response: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun analyzeImage(prompt: String, bitmap: Bitmap): String? {
+        return try {
+            val inputContent = content {
+                image(bitmap)
+                text(prompt)
+            }
+            val response = visionModel.generateContent(inputContent)
+            response.text
+        } catch (e: Exception) {
+            Log.e("GeminiClient", "Error analyzing image: ${e.message}")
             null
         }
     }
