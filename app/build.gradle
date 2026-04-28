@@ -10,10 +10,10 @@ android {
 
     defaultConfig {
         applicationId "com.assistant.android"
-        minSdk 26
-        targetSdk 34
-        versionCode 4
-        versionName "4.0-Nexus"
+        minSdk 24
+        targetSdk 33
+        versionCode 5
+        versionName "4.1-Nexus-Fix"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "String", "GEMINI_API_KEY", "\"AIzaSyDBWUUZ8zguYRg--jfe5MAR2RtnhUb2iBw\""
@@ -21,13 +21,10 @@ android {
 
     signingConfigs {
         release {
-            def ksFile = file("release.keystore")
-            if (ksFile.exists()) {
-                storeFile ksFile
-                storePassword "nexus2026"
-                keyAlias "nexuskey"
-                keyPassword "nexus2026"
-            }
+            storeFile file("release.keystore")
+            storePassword System.getenv("SIGNING_STORE_PASSWORD") ?: "nexus2026"
+            keyAlias System.getenv("SIGNING_KEY_ALIAS") ?: "nexuskey"
+            keyPassword System.getenv("SIGNING_KEY_PASSWORD") ?: "nexus2026"
         }
     }
 

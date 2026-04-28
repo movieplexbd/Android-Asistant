@@ -74,3 +74,28 @@ jobs:
           path: build_output/nexus-assistant-release.apk
           if-no-files-found: error
           retention-days: 90
+
+      - name: Create Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build_output/nexus-assistant-release.apk
+          tag_name: v4.1.${{ github.run_number }}
+          name: Release v4.1.${{ github.run_number }}
+          body: |
+            Automated Build for Android Assistant (Nexus Edition)
+            
+            **Changes in this release:**
+            - Fixed Android 10 (API 29) compatibility issues.
+            - Adjusted `targetSdk` to 33 for better compatibility with older devices.
+            - Lowered `minSdk` to 24.
+            - Added missing permissions for phone, contacts, and storage.
+            - Added Assistant and Voice Command intent filters to `MainActivity`.
+            - Improved background service stability.
+            
+            **Installation:**
+            Download the `nexus-assistant-release.apk` below and install it on your device.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
