@@ -2,6 +2,15 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Nexus brand palette -->
+    <color name="nexus_primary">#FF5B6CFF</color>
+    <color name="nexus_primary_container">#FF3A47C9</color>
+    <color name="nexus_secondary">#FF00E5C7</color>
+    <color name="nexus_surface">#FF0F1226</color>
+    <color name="nexus_card">#FF161A35</color>
+
+    <!-- Legacy keep-around -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>

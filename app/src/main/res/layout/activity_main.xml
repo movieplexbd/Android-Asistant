@@ -4,90 +4,152 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+    android:background="@color/nexus_surface"
     tools:context=".ui.MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@color/nexus_primary">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            app:title="Android Assistant Pro"
-            app:titleTextColor="?attr/colorOnPrimary" />
+            android:background="@color/nexus_primary"
+            app:title="@string/title_main"
+            app:titleTextColor="@color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:padding="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/chatRecyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:padding="8dp"
-            android:clipToPadding="false"
-            app:layout_constraintBottom_toTopOf="@+id/inputCard"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <com.airbnb.android.lottie.LottieAnimationView
-            android:id="@+id/aiAnimation"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_marginBottom="16dp"
-            app:lottie_autoPlay="true"
-            app:lottie_loop="true"
-            app:layout_constraintBottom_toTopOf="@+id/inputCard"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/inputCard"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="8dp"
-            app:layout_constraintBottom_toBottomOf="parent">
+            android:orientation="vertical">
 
-            <LinearLayout
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="4dp">
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="@color/nexus_card"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="6dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/voiceButton"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    app:icon="@android:drawable/ic_btn_speak_now"
-                    app:iconSize="28dp" />
-
-                <TextView
-                    android:id="@+id/statusTextView"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="Tap to speak..."
-                    android:textAppearance="?attr/textAppearanceBodyLarge" />
+                    android:orientation="vertical"
+                    android:padding="20dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/cameraButton"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    app:icon="@android:drawable/ic_menu_camera"
-                    app:iconSize="28dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="MASTER CONTROL"
+                        android:textColor="@color/nexus_secondary"
+                        android:textSize="12sp"
+                        android:letterSpacing="0.2"
+                        android:textStyle="bold" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                    <TextView
+                        android:id="@+id/statusTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/status_idle"
+                        android:textColor="@color/white"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/statsTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Commands: 0  •  Routines: 0  •  Translations: 0  •  Errors: 0"
+                        android:textColor="#B0B5D8"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/voiceButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="12dp"
+                android:text="Start Assistant"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                app:cornerRadius="16dp"
+                app:icon="@android:drawable/ic_btn_speak_now"
+                app:iconGravity="textStart" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/wakeWordButton"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="12dp"
+                android:text="Start Wake Word (Hey Nexus)"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                app:cornerRadius="16dp"
+                app:icon="@android:drawable/ic_lock_silent_mode_off"
+                app:iconGravity="textStart" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/overlayButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="20dp"
+                android:text="Toggle Floating Bubble"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                app:cornerRadius="16dp"
+                app:strokeColor="@color/nexus_secondary"
+                app:icon="@android:drawable/ic_menu_view"
+                app:iconGravity="textStart"
+                app:iconTint="@color/nexus_secondary" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/nexus_card"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ELITE FEATURES"
+                        android:textColor="@color/nexus_secondary"
+                        android:textSize="12sp"
+                        android:letterSpacing="0.2"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="• Wake-word: 'Hey Nexus'\n• Smart Routines (chained automations)\n• Real-time Multi-language Translation\n• Deep UI Automation via Accessibility\n• Predictive Memory + Context"
+                        android:textColor="#E0E3FF"
+                        android:textSize="14sp"
+                        android:lineSpacingExtra="4dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

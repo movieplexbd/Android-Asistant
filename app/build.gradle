@@ -12,14 +12,17 @@ android {
         applicationId "com.assistant.android"
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "3.0-Elite"
+        versionCode 4
+        versionName "4.0-Nexus"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField "String", "GEMINI_API_KEY", "\"YOUR_GEMINI_API_KEY\""
+        buildConfigField "String", "GEMINI_API_KEY", "\"AIzaSyDBWUUZ8zguYRg--jfe5MAR2RtnhUb2iBw\""
     }
 
     buildTypes {
+        debug {
+            minifyEnabled false
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -36,6 +39,11 @@ android {
         viewBinding true
         buildConfig true
     }
+    packaging {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}', '/META-INF/DEPENDENCIES', '/META-INF/NOTICE', '/META-INF/LICENSE']
+        }
+    }
 }
 
 dependencies {
@@ -43,16 +51,19 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.cardview:cardview:1.0.0'
+
     // Biometric
     implementation "androidx.biometric:biometric:1.2.0-alpha05"
-    
-    // Location
+
+    // Location & Sensors
     implementation "com.google.android.gms:play-services-location:21.1.0"
 
     // Lifecycle & Coroutines
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
     implementation "androidx.lifecycle:lifecycle-service:2.7.0"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
 
@@ -61,9 +72,12 @@ dependencies {
     ksp "androidx.room:room-compiler:2.6.1"
     implementation "androidx.room:room-ktx:2.6.1"
 
-    // Gemini
-    implementation "com.google.generativeai:generativeai:0.7.0"
+    // Gemini AI Client (correct artifact)
+    implementation "com.google.ai.client.generativeai:generativeai:0.9.0"
 
-    // UI
+    // WorkManager for routines
+    implementation "androidx.work:work-runtime-ktx:2.9.0"
+
+    // UI - Lottie
     implementation 'com.airbnb.android:lottie:6.3.0'
 }

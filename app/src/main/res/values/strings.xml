@@ -1,4 +1,8 @@
 <resources>
-    <string name="app_name">Android Assistant</string>
+    <string name="app_name">Nexus Assistant</string>
+    <string name="title_main">Nexus AI Assistant</string>
+    <string name="status_idle">Tap to start</string>
+
+    <!-- Kept for backward-compat — but the API key now lives in BuildConfig.GEMINI_API_KEY -->
     <string name="gemini_api_key">AIzaSyDBWUUZ8zguYRg--jfe5MAR2RtnhUb2iBw</string>
 </resources>

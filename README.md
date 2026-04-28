@@ -1,98 +1,107 @@
-# Android Assistant Pro (Elite Edition v3.0) 🚀
+# Nexus Assistant (v4.0 — Nexus Edition) 🚀
 
-Android Assistant Pro is a high-performance, AI-driven personal assistant for Android. Built with **Gemini 1.5 Flash**, it combines advanced natural language understanding with deep system integration to provide a seamless, proactive, and secure user experience.
+A high-performance, AI-driven personal Android assistant powered by **Gemini 1.5 Flash**.
+Combines deep system control, multi-language voice command, smart routines and real-time
+translation — all coordinated by a single **Master Controller** state machine.
 
 ---
 
-## ✨ Key Features
+## ✨ What's New in v4.0 (Nexus)
 
-### 🧠 Advanced Intelligence
-- **Gemini 1.5 Flash Integration**: Native function calling for device control, messaging, and information retrieval.
-- **Contextual Memory**: Remembers past interactions to provide personalized and coherent responses.
-- **Multi-Modal Vision**: Analyze and describe the world through the camera using Gemini's vision capabilities.
-- **Predictive Automation**: Anticipates user needs based on location, time, and sensor data.
+### 🧠 Upgraded Master Control
+- **`MasterController` state machine** (`IDLE → LISTENING → THINKING → EXECUTING → SPEAKING`)
+  drives every UI surface — main screen, floating bubble, notification — from a single
+  source of truth.
+- **Reactive UI** via Kotlin Flow / `lifecycleScope` — status & stats update live.
+- **Resilient pipeline**: every step (STT → Gemini → action → TTS) recovers gracefully on
+  failure and auto-resumes listening.
 
-### 🛠️ System Integration
-- **System-Wide Overlay**: A persistent floating bubble allows access to the assistant from any application.
-- **Deep UI Automation**: Leverages Accessibility Services to perform complex actions across third-party apps.
-- **Offline STT/TTS**: High-speed speech recognition and synthesis with support for custom AI voices.
+### 🎙 Master Voice & Automation Upgrades
+- **Continuous, partial-result-aware speech recognition** (auto-restart loop).
+- **Strict JSON contract** with the model — multi-step `routine_steps` and chained
+  `next_step` (e.g. biometric_auth → send money) are first-class.
+- **Common-name app resolution** ("open whatsapp", "open chrome") with package fallback.
+- **Deep accessibility automation**: click-by-text (with parent walk), scroll, swipe by
+  gesture, home / back / recents / notifications / quick settings.
+- **Native system actions**: alarm/reminder via `AlarmClock`, volume up/down/mute,
+  Wi-Fi / Bluetooth / location / battery panel shortcuts, camera launch.
 
-### 🔒 Security & Privacy
-- **Biometric Authentication**: Fingerprint and Face ID protection for sensitive actions (e.g., payments, private messages).
-- **On-Device Processing**: Prefers local execution for basic commands to ensure speed and privacy.
-
-### 🎨 Modern UI/UX
-- **Material 3 Design**: A beautiful, dynamic interface with dark mode support and personalized color schemes.
-- **Interactive Animations**: Powered by Lottie for a lively and responsive feel.
-- **Chat-Style Interface**: Intuitive conversation flow with rich content cards.
+### 🆕 3 New Headline Features
+1. **Wake-Word Service** — `WakeWordService` constantly listens for *"Hey Nexus"* /
+   *"Nexus"* / *"Ok Nexus"* and hands off to the main `ForegroundService` on detection.
+2. **Smart Routines (`RoutineEngine`)** — chain multiple intents in one command
+   ("Good morning routine" → open WiFi → set alarm → read calendar). Steps are spaced
+   so the OS has time to settle UI state.
+3. **Real-time Multi-language Translation (`TranslationManager`)** — translate any
+   spoken text to Bangla / English / Hindi / Arabic / Spanish / French / German /
+   Japanese / Chinese and speak it back in the target locale.
 
 ---
 
 ## 🛠 Tech Stack
 
 - **Language**: Kotlin
-- **Architecture**: MVVM (Model-View-ViewModel)
-- **AI Engine**: Google Generative AI SDK (Gemini)
-- **Database**: Room Persistence Library (for Contextual Memory)
-- **UI Components**: Material Design 3, Jetpack ConstraintLayout, Lottie
-- **CI/CD**: GitHub Actions (Automated APK Builds)
+- **AI**: `com.google.ai.client.generativeai:generativeai` (Gemini 1.5 Flash)
+- **UI**: Material Design 3, ConstraintLayout, Lottie
+- **Persistence**: Room + KSP
+- **Concurrency**: Kotlin Coroutines + Flow
+- **CI/CD**: GitHub Actions → unsigned debug APK artifact
 
 ---
 
-## 🚀 Getting Started
+## 📲 CI/CD — Debug APK from GitHub Actions
 
-### Prerequisites
-- Android Studio Hedgehog or newer.
-- Android SDK 34 (Upside Down Cake).
-- A Gemini API Key from [Google AI Studio](https://aistudio.google.com/).
+Every push to `main`/`master` (or manual `workflow_dispatch`) builds a debug APK and
+uploads it as the artifact **`nexus-assistant-debug-apk`**.
 
-### Installation
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/movieplexbd/Android-Asistant.git
-   ```
-2. **Configure API Key**:
-   Open `app/src/main/res/values/strings.xml` and replace `YOUR_GEMINI_API_KEY` with your actual key.
-3. **Build & Run**:
-   Connect your device and click **Run** in Android Studio.
+**Where to download:**
+GitHub → repo → **Actions** tab → latest *Android CI/CD* run → **Artifacts** section.
 
 ---
 
-## 🗺️ Roadmap & Future Upgrades
+## 🗺️ Architecture (high-level)
 
-To make this assistant even more powerful and beautiful, we recommend the following upgrades:
+```
+┌──────────────────────────────────────────────────────────────┐
+│                     MasterController                         │
+│  (State + Stats StateFlow — single source of truth)          │
+└──────────────▲────────────▲────────────▲────────────────────┘
+               │            │            │
+   ┌───────────┴───┐  ┌─────┴────┐  ┌───┴───────────┐
+   │ MainActivity  │  │ Overlay  │  │ Notification  │
+   └───────────────┘  └──────────┘  └───────────────┘
 
-### 1. UI/UX Refinement
-- **Jetpack Compose Migration**: Rewrite the UI in Compose for smoother animations and state-driven layouts.
-- **Glassmorphism Effects**: Implement modern, translucent UI elements for the floating overlay.
-- **Gesture Controls**: Add custom swipe gestures to trigger specific AI workflows.
+┌──────────────────────────────────────────────────────────────┐
+│                  ForegroundService                            │
+│  STT → PromptEngine → GeminiClient → JSON                     │
+│        ├─ ActionExecutor (call/sms/open/alarm/settings)       │
+│        ├─ RoutineEngine  (chained intents)                    │
+│        └─ TranslationManager (Gemini + locale-aware TTS)      │
+└──────────────────────────────────────────────────────────────┘
 
-### 2. Power & Intelligence
-- **Edge AI (TensorFlow Lite)**: Integrate local LLMs for 100% offline basic task handling.
-- **Plugin System**: Allow developers to create "Skills" (e.g., Spotify control, Crypto tracking) as separate modules.
-- **Smart Home (Matter/Thread)**: Direct integration with IoT devices for unified home control.
+┌──────────────────────────────────────────────────────────────┐
+│  WakeWordService  →  triggers ForegroundService on hotword   │
+└──────────────────────────────────────────────────────────────┘
 
-### 3. Performance
-- **Dagger Hilt**: Implement Dependency Injection for better scalability and testing.
-- **Kotlin Flow**: Fully migrate to reactive streams for real-time sensor and location updates.
+┌──────────────────────────────────────────────────────────────┐
+│  AssistantAccessibilityService                               │
+│  click-by-text · scroll · swipe gesture · global actions     │
+└──────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 🤝 Contributing
+## 🚀 Getting Started Locally
 
-We welcome contributions! If you're a developer looking to improve the assistant:
-1. Fork the project.
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+```bash
+git clone https://github.com/movieplexbd/Android-Asistant.git
+cd Android-Asistant
+./gradlew assembleDebug
+```
+
+The Gemini API key is read from `BuildConfig.GEMINI_API_KEY` (set in `app/build.gradle`).
 
 ---
 
 ## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-**Developed with ❤️ by the Android Assistant Team.**
+MIT.

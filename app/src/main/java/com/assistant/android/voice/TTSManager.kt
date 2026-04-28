@@ -2,7 +2,6 @@ package com.assistant.android.voice
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
-import android.speech.tts.Voice
 import android.util.Log
 import java.util.Locale
 
@@ -19,41 +18,45 @@ class TTSManager(context: Context, private val initListener: OnInitListener) : T
         if (status == TextToSpeech.SUCCESS) {
             val result = tts?.setLanguage(Locale.US)
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e("TTSManager", "Language not supported")
-                initListener.onTTSInitialized(false)
-            } else {
-                isInitialized = true
-                initListener.onTTSInitialized(true)
+                Log.e(TAG, "Default language not supported, falling back to default")
             }
+            isInitialized = true
+            initListener.onTTSInitialized(true)
         } else {
-            Log.e("TTSManager", "Initialization failed")
+            Log.e(TAG, "TTS initialization failed: $status")
             initListener.onTTSInitialized(false)
         }
     }
 
     fun speak(text: String) {
-        if (isInitialized) {
-            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
-        }
+        if (!isInitialized || text.isBlank()) return
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nexus_${System.currentTimeMillis()}")
     }
 
-    fun setVoice(voiceName: String) {
-        if (isInitialized) {
-            val voices = tts?.voices
-            val selectedVoice = voices?.find { it.name.contains(voiceName, ignoreCase = true) }
-            selectedVoice?.let {
-                tts?.voice = it
-            }
-        }
+    fun setLanguage(locale: Locale): Boolean {
+        if (!isInitialized) return false
+        val r = tts?.setLanguage(locale)
+        return r != null && r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED
     }
 
-    fun getAvailableVoices(): List<String> {
-        return tts?.voices?.map { it.name } ?: emptyList()
+    fun setVoiceByName(voiceName: String) {
+        if (!isInitialized) return
+        val voices = tts?.voices ?: return
+        voices.firstOrNull { it.name.contains(voiceName, ignoreCase = true) }?.let { tts?.voice = it }
     }
+
+    fun getAvailableVoices(): List<String> = tts?.voices?.map { it.name } ?: emptyList()
+
+    fun stop() { tts?.stop() }
 
     fun shutdown() {
         tts?.stop()
         tts?.shutdown()
         tts = null
+        isInitialized = false
+    }
+
+    companion object {
+        private const val TAG = "TTSManager"
     }
 }

@@ -7,37 +7,42 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Setup Gradle Wrapper
-      run: |
-        if [ ! -f gradlew ]; then
-          # Install gradle if not present to generate wrapper
-          if ! command -v gradle &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y gradle
-          fi
-          gradle wrapper --gradle-version 8.5
-        fi
-        chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug --stacktrace
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/*.apk
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
+
+      - name: Rename APK
+        run: |
+          mkdir -p build_output
+          cp app/build/outputs/apk/debug/*.apk build_output/nexus-assistant-debug.apk
+          ls -lh build_output
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-assistant-debug-apk
+          path: build_output/nexus-assistant-debug.apk
+          if-no-files-found: error
+          retention-days: 30
