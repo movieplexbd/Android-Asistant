@@ -56,7 +56,7 @@
             android:name=".automation.AssistantAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="false"
-            android:label="Nexus Automation">
+            android:label="Jarvis Automation">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>

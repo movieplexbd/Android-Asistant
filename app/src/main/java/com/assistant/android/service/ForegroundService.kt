@@ -53,7 +53,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification("Assistant active", "Listening for commands…"))
+        startForeground(NOTIFICATION_ID, buildNotification("Jarvis active", "Listening for commands…"))
 
         speechRecognizer = SpeechRecognizerManager(this, this)
         ttsManager = TTSManager(this, this)
@@ -62,10 +62,14 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         routineEngine = RoutineEngine(this)
         translationManager = TranslationManager(geminiClient, ttsManager)
         memoryRepository = MemoryRepository(AppDatabase.getDatabase(this))
+        MasterController.recordLog("Assistant service started")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand action=${intent?.action}")
+        if (intent?.action == ACTION_WAKE) {
+            MasterController.recordLog("Woken by wake-word")
+        }
         MasterController.transitionTo(MasterController.State.LISTENING)
         speechRecognizer.startListening()
         return START_STICKY
@@ -79,11 +83,12 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         ttsManager.shutdown()
         scope.cancel()
         MasterController.transitionTo(MasterController.State.IDLE)
+        MasterController.recordLog("Assistant service stopped")
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(NOTIFICATION_CHANNEL_ID, "Nexus Assistant", NotificationManager.IMPORTANCE_LOW)
+            val ch = NotificationChannel(NOTIFICATION_CHANNEL_ID, "Jarvis Assistant", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
         }
     }
@@ -105,7 +110,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
 
     private fun updateNotification(text: String) {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.notify(NOTIFICATION_ID, buildNotification("Nexus", text))
+        nm.notify(NOTIFICATION_ID, buildNotification("Jarvis", text))
     }
 
     // ------- RecognitionListener -------
@@ -114,6 +119,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         if (!matches.isNullOrEmpty()) {
             processCommand(matches[0])
         } else {
+            MasterController.recordLog("No speech detected — restarting listener")
             speechRecognizer.startListening()
         }
     }
@@ -128,18 +134,21 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
             try {
                 val memorySnippet = runCatching {
                     memoryRepository.getAllHistory().takeLast(10).joinToString("\n") {
-                        "User: ${it.command} | NEXUS: ${it.aiResponse}"
+                        "User: ${it.command} | JARVIS: ${it.aiResponse}"
                     }
                 }.getOrDefault("")
 
                 val prompt = PromptEngine.generatePrompt(command, memorySnippet)
                 val raw = geminiClient.getGeminiResponse(prompt) ?: run {
+                    MasterController.recordLog("Gemini returned no response")
                     speakAndContinue("Sorry, I couldn't reach my brain right now.")
                     MasterController.transitionTo(MasterController.State.ERROR)
                     return@launch
                 }
                 val json = PromptEngine.parseGeminiResponse(raw)
                 if (json == null) {
+                    MasterController.recordLog("Free-text reply (no JSON)")
+                    MasterController.recordReply(raw)
                     speakAndContinue(raw)
                     return@launch
                 }
@@ -155,6 +164,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
                     )
                 }
 
+                MasterController.recordUnderstood(intent.ifEmpty { "chat" }, reply)
                 MasterController.recordReply(reply)
                 MasterController.transitionTo(MasterController.State.EXECUTING)
 
@@ -162,26 +172,33 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
                     "routine" -> {
                         val steps = json.optJSONArray("routine_steps")
                         if (steps != null) {
+                            MasterController.recordAction("Running routine with ${steps.length()} step(s)")
                             ttsManager.speak(reply)
                             routineEngine.runRoutine(steps)
                             MasterController.recordRoutine()
                         }
                     }
                     "translate" -> {
+                        MasterController.recordAction("Translating to $target: \"$message\"")
                         val translated = translationManager.translateAndSpeak(message, target)
                         if (translated != null) MasterController.recordTranslation()
                     }
                     else -> {
+                        MasterController.recordAction(describeIntent(intent, json))
                         actionExecutor.executeIntent(json)
                         ttsManager.speak(reply)
                     }
                 }
 
                 // Optional follow-up step (e.g. after biometric_auth -> send_money)
-                json.optJSONObject("next_step")?.let { routineEngine.runNextStep(it) }
+                json.optJSONObject("next_step")?.let {
+                    MasterController.recordAction("Follow-up: ${it.optString("intent", "next")}")
+                    routineEngine.runNextStep(it)
+                }
 
             } catch (e: Exception) {
                 Log.e(TAG, "processCommand crash", e)
+                MasterController.recordLog("ERROR: ${e.message ?: e.javaClass.simpleName}")
                 MasterController.transitionTo(MasterController.State.ERROR)
                 speakAndContinue("Something went wrong. I'll try again.")
             } finally {
@@ -192,24 +209,73 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         }
     }
 
+    private fun describeIntent(intent: String, json: JSONObject): String = when (intent) {
+        "open_app" -> "Opening app: ${json.optString("target")}"
+        "call" -> "Calling: ${json.optString("target")}"
+        "sms", "send_sms" -> "Sending SMS to ${json.optString("target")}: \"${json.optString("message")}\""
+        "alarm", "set_alarm" -> "Setting alarm: ${json.optString("target")}"
+        "reminder" -> "Setting reminder: ${json.optString("message")}"
+        "volume_up" -> "Volume up"
+        "volume_down" -> "Volume down"
+        "volume_set" -> "Setting volume to ${json.optString("target")}"
+        "wifi_on", "wifi_off", "bluetooth_on", "bluetooth_off" -> "Toggling ${intent.replace('_',' ')}"
+        "settings", "open_settings" -> "Opening settings panel"
+        "search", "web_search" -> "Searching: ${json.optString("target")}"
+        "navigate" -> "Navigating to: ${json.optString("target")}"
+        "camera" -> "Opening camera"
+        "screenshot" -> "Taking screenshot"
+        "home" -> "Going to home screen"
+        "back" -> "Pressing back"
+        "scroll_up", "scroll_down" -> "Scrolling ${intent.removePrefix("scroll_")}"
+        "tap_text" -> "Tapping on: \"${json.optString("target")}\""
+        "" , "chat", "answer" -> "Answering"
+        else -> "Executing: $intent"
+    }
+
     private fun speakAndContinue(text: String) {
         ttsManager.speak(text)
     }
 
     override fun onError(error: Int) {
         Log.w(TAG, "STT error code=$error")
+        val reason = when (error) {
+            SpeechRecognizer.ERROR_NO_MATCH -> "no match"
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "speech timeout"
+            SpeechRecognizer.ERROR_AUDIO -> "audio error"
+            SpeechRecognizer.ERROR_CLIENT -> "client error"
+            SpeechRecognizer.ERROR_NETWORK -> "network error"
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "network timeout"
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "recognizer busy"
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "missing mic permission"
+            else -> "code $error"
+        }
+        MasterController.recordLog("STT: $reason — restarting")
         speechRecognizer.startListening()
     }
 
-    override fun onReadyForSpeech(params: Bundle?) { MasterController.transitionTo(MasterController.State.LISTENING) }
-    override fun onBeginningOfSpeech() {}
-    override fun onRmsChanged(rmsdB: Float) {}
+    override fun onReadyForSpeech(params: Bundle?) {
+        MasterController.transitionTo(MasterController.State.LISTENING)
+        MasterController.recordLog("Mic open — ready for speech")
+    }
+    override fun onBeginningOfSpeech() { MasterController.recordLog("Speech started") }
+    override fun onRmsChanged(rmsdB: Float) {
+        // RMS dB roughly ranges -2..10; normalize to 0..1
+        val normalized = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)
+        MasterController.setAudioLevel(normalized)
+    }
     override fun onBufferReceived(buffer: ByteArray?) {}
-    override fun onEndOfSpeech() {}
-    override fun onPartialResults(partialResults: Bundle?) {}
+    override fun onEndOfSpeech() {
+        MasterController.recordLog("Speech ended — processing")
+        MasterController.setAudioLevel(0f)
+    }
+    override fun onPartialResults(partialResults: Bundle?) {
+        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        matches?.firstOrNull()?.let { MasterController.setPartial(it) }
+    }
     override fun onEvent(eventType: Int, params: Bundle?) {}
     override fun onTTSInitialized(success: Boolean) {
         Log.d(TAG, "TTS ready=$success")
+        MasterController.recordLog("TTS engine ready=$success")
     }
 
     companion object {

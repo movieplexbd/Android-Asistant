@@ -14,17 +14,14 @@ import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.assistant.android.core.MasterController
 import com.assistant.android.voice.SpeechRecognizerManager
 
 /**
- * NEW FEATURE #3 — Wake Word Detection ("Hey Nexus" / "Nexus" / "ok nexus").
+ * Wake-word listener for "Hey Jarvis" / "Jarvis" / "Ok Jarvis".
  *
  * Lightweight always-on listener. When the wake phrase is detected in partial or final results,
  * it launches the main ForegroundService which takes over with full conversational mode.
- *
- * NOTE: This is a software wake-word using the system speech recognizer (auto-restart loop).
- * For production-grade always-on detection, swap this for Picovoice Porcupine; the trigger contract
- * (start ForegroundService.ACTION_WAKE) stays the same.
  */
 class WakeWordService : Service(), RecognitionListener {
 
@@ -36,6 +33,7 @@ class WakeWordService : Service(), RecognitionListener {
         createChannel()
         startForeground(2, buildNotification())
         recognizer = SpeechRecognizerManager(this, this)
+        MasterController.recordLog("Wake-word listener started — say 'Hey Jarvis'")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -49,6 +47,7 @@ class WakeWordService : Service(), RecognitionListener {
     override fun onDestroy() {
         super.onDestroy()
         recognizer.destroy()
+        MasterController.recordLog("Wake-word listener stopped")
     }
 
     private fun createChannel() {
@@ -60,8 +59,8 @@ class WakeWordService : Service(), RecognitionListener {
 
     private fun buildNotification(): Notification =
         NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Nexus is listening")
-            .setContentText("Say 'Hey Nexus' to start")
+            .setContentTitle("Jarvis is listening")
+            .setContentText("Say 'Hey Jarvis' to wake me")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
@@ -71,6 +70,7 @@ class WakeWordService : Service(), RecognitionListener {
         val lower = text.lowercase()
         if (WAKE_WORDS.any { lower.contains(it) }) {
             Log.d(TAG, "Wake word detected in: $text")
+            MasterController.recordLog("Wake word detected: \"$text\" — waking assistant")
             recognizer.cancel()
             val i = Intent(this, ForegroundService::class.java).apply {
                 action = ForegroundService.ACTION_WAKE
@@ -105,6 +105,9 @@ class WakeWordService : Service(), RecognitionListener {
 
     companion object {
         private const val TAG = "WakeWordService"
-        private val WAKE_WORDS = listOf("hey nexus", "ok nexus", "nexus", "hey assistant")
+        private val WAKE_WORDS = listOf(
+            "hey jarvis", "ok jarvis", "okay jarvis",
+            "jarvis", "hi jarvis", "yo jarvis"
+        )
     }
 }

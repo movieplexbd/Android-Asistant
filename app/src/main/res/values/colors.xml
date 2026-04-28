@@ -3,12 +3,22 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Nexus brand palette -->
+    <!-- Jarvis brand palette -->
     <color name="nexus_primary">#FF5B6CFF</color>
     <color name="nexus_primary_container">#FF3A47C9</color>
     <color name="nexus_secondary">#FF00E5C7</color>
     <color name="nexus_surface">#FF0F1226</color>
     <color name="nexus_card">#FF161A35</color>
+    <color name="nexus_card_alt">#FF1F2447</color>
+
+    <!-- State badge colors -->
+    <color name="state_idle">#FF6B7280</color>
+    <color name="state_listening">#FF22C55E</color>
+    <color name="state_thinking">#FFF59E0B</color>
+    <color name="state_executing">#FF3B82F6</color>
+    <color name="state_speaking">#FF8B5CF6</color>
+    <color name="state_error">#FFEF4444</color>
+    <color name="text_dim">#FFB0B5D8</color>
 
     <!-- Legacy keep-around -->
     <color name="purple_200">#FFBB86FC</color>

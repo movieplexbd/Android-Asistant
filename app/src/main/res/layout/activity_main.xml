@@ -32,10 +32,11 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- LIVE STATUS CARD -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="14dp"
                 app:cardBackgroundColor="@color/nexus_card"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="6dp">
@@ -46,41 +47,157 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <View
+                            android:id="@+id/stateDot"
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:background="@color/state_idle"
+                            android:layout_marginEnd="10dp" />
+
+                        <TextView
+                            android:id="@+id/statusTextView"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="IDLE"
+                            android:textColor="@color/white"
+                            android:textSize="22sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05" />
+                    </LinearLayout>
+
+                    <!-- Audio level bar -->
+                    <ProgressBar
+                        android:id="@+id/audioLevelBar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp"
+                        android:layout_marginTop="12dp"
+                        android:max="100"
+                        android:progress="0"
+                        android:progressTint="@color/state_listening"
+                        android:progressBackgroundTint="@color/nexus_card_alt" />
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="MASTER CONTROL"
+                        android:layout_marginTop="14dp"
+                        android:text="HEARING (live)"
                         android:textColor="@color/nexus_secondary"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:letterSpacing="0.2"
                         android:textStyle="bold" />
 
                     <TextView
-                        android:id="@+id/statusTextView"
+                        android:id="@+id/partialTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="—"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:fontFamily="monospace" />
+
+                    <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/status_idle"
-                        android:textColor="@color/white"
-                        android:textSize="22sp"
+                        android:layout_marginTop="12dp"
+                        android:text="HEARD"
+                        android:textColor="@color/nexus_secondary"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.2"
                         android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/heardTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="—"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="UNDERSTOOD"
+                        android:textColor="@color/nexus_secondary"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.2"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/understoodTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="—"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="DOING"
+                        android:textColor="@color/nexus_secondary"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.2"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/actionTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="—"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="REPLY"
+                        android:textColor="@color/nexus_secondary"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.2"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/replyTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="—"
+                        android:textColor="@color/white"
+                        android:textSize="15sp"
+                        android:textStyle="italic" />
 
                     <TextView
                         android:id="@+id/statsTextView"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="14dp"
                         android:text="Commands: 0  •  Routines: 0  •  Translations: 0  •  Errors: 0"
-                        android:textColor="#B0B5D8"
-                        android:textSize="13sp" />
+                        android:textColor="@color/text_dim"
+                        android:textSize="12sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- BUTTONS -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/voiceButton"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="10dp"
                 android:text="Start Assistant"
                 android:textAllCaps="false"
                 android:textSize="16sp"
@@ -93,8 +210,8 @@
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginBottom="12dp"
-                android:text="Start Wake Word (Hey Nexus)"
+                android:layout_marginBottom="10dp"
+                android:text="Start Wake Word (Hey Jarvis)"
                 android:textAllCaps="false"
                 android:textSize="16sp"
                 app:cornerRadius="16dp"
@@ -106,7 +223,7 @@
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="16dp"
                 android:text="Toggle Floating Bubble"
                 android:textAllCaps="false"
                 android:textColor="@color/white"
@@ -117,6 +234,44 @@
                 app:iconGravity="textStart"
                 app:iconTint="@color/nexus_secondary" />
 
+            <!-- ACTIVITY LOG -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/nexus_card"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ACTIVITY LOG"
+                        android:textColor="@color/nexus_secondary"
+                        android:textSize="12sp"
+                        android:letterSpacing="0.2"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/logTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="No activity yet."
+                        android:textColor="#E0E3FF"
+                        android:textSize="12sp"
+                        android:fontFamily="monospace"
+                        android:lineSpacingExtra="2dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- FEATURES -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -143,7 +298,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="• Wake-word: 'Hey Nexus'\n• Smart Routines (chained automations)\n• Real-time Multi-language Translation\n• Deep UI Automation via Accessibility\n• Predictive Memory + Context"
+                        android:text="• Wake-word: 'Hey Jarvis'\n• Smart Routines (chained automations)\n• Real-time Multi-language Translation\n• Deep UI Automation via Accessibility\n• Predictive Memory + Context\n• Live transparency: hear / understand / do"
                         android:textColor="#E0E3FF"
                         android:textSize="14sp"
                         android:lineSpacingExtra="4dp" />
