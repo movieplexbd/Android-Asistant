@@ -12,11 +12,14 @@ android {
         applicationId "com.assistant.android"
         minSdk 24
         targetSdk 33
-        versionCode 6
-        versionName "4.2-Nexus-Fix"
+        versionCode 7
+        versionName "4.3-Nexus-Chat"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField "String", "GEMINI_API_KEY", "\"AIzaSyDBWUUZ8zguYRg--jfe5MAR2RtnhUb2iBw\""
+        // Empty fallback — user is expected to paste their own key in Settings.
+        // CI can override at build time via -PgeminiApiKey=…
+        def ciKey = project.findProperty("geminiApiKey") ?: ""
+        buildConfigField "String", "GEMINI_API_KEY", "\"${ciKey}\""
     }
 
     signingConfigs {

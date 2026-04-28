@@ -20,11 +20,14 @@ import java.util.Locale
  *  - lastReply      : last spoken reply
  *  - lastError      : (short, detail) for the debug console
  *  - logs           : rolling activity log (last 30 lines)
+ *  - chatHistory    : conversational log (user/assistant pairs) for the chat UI
  *  - stats          : counters
  */
 object MasterController {
 
     enum class State { IDLE, LISTENING, THINKING, SPEAKING, EXECUTING, ERROR }
+    enum class Source { VOICE, TEXT, WAKE }
+    enum class Sender { USER, JARVIS, SYSTEM }
 
     private val _state = MutableStateFlow(State.IDLE)
     val state: StateFlow<State> = _state
@@ -53,6 +56,9 @@ object MasterController {
     private val _logs = MutableStateFlow<List<String>>(emptyList())
     val logs: StateFlow<List<String>> = _logs
 
+    private val _chatHistory = MutableStateFlow<List<ChatEntry>>(emptyList())
+    val chatHistory: StateFlow<List<ChatEntry>> = _chatHistory
+
     private val _stats = MutableStateFlow(Stats())
     val stats: StateFlow<Stats> = _stats
 
@@ -66,6 +72,12 @@ object MasterController {
     data class ErrorInfo(
         val short: String,
         val detail: String,
+        val timestampMs: Long = System.currentTimeMillis()
+    )
+
+    data class ChatEntry(
+        val sender: Sender,
+        val text: String,
         val timestampMs: Long = System.currentTimeMillis()
     )
 
@@ -86,11 +98,12 @@ object MasterController {
 
     fun setPartial(text: String) { _partial.value = text }
 
-    fun recordCommand(command: String) {
+    fun recordCommand(command: String, source: Source = Source.VOICE) {
         _lastCommand.value = command
         _partial.value = ""
         _stats.value = _stats.value.copy(commandsHandled = _stats.value.commandsHandled + 1)
-        recordLog("Heard: \"$command\"")
+        recordLog("Heard (${source.name}): \"$command\"")
+        appendChat(ChatEntry(Sender.USER, command))
     }
 
     fun recordUnderstood(intent: String, reply: String) {
@@ -107,12 +120,14 @@ object MasterController {
     fun recordReply(reply: String) {
         _lastReply.value = reply
         recordLog("Speaking: \"$reply\"")
+        appendChat(ChatEntry(Sender.JARVIS, reply))
     }
 
     fun recordError(short: String, detail: String) {
         _lastError.value = ErrorInfo(short, detail)
         _stats.value = _stats.value.copy(errors = _stats.value.errors + 1)
         recordLog("ERROR: $short")
+        appendChat(ChatEntry(Sender.SYSTEM, "⚠ $short"))
         Log.e(TAG, "ERROR: $short\n$detail")
     }
 
@@ -129,6 +144,15 @@ object MasterController {
         _logs.value = cur
         Log.d(TAG, stamped)
     }
+
+    fun appendChat(entry: ChatEntry) {
+        val cur = _chatHistory.value.toMutableList()
+        cur.add(entry)
+        if (cur.size > 60) cur.subList(0, cur.size - 60).clear()
+        _chatHistory.value = cur
+    }
+
+    fun clearChatHistory() { _chatHistory.value = emptyList() }
 
     fun reset() {
         _state.value = State.IDLE

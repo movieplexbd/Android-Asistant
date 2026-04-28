@@ -103,11 +103,10 @@ class GeminiClient(
     }
 
     private fun callGenerate(body: JSONObject): Result {
-        if (apiKey.isBlank() || apiKey == "AIzaSyDBWUUZ8zguYRg--jfe5MAR2RtnhUb2iBw") {
-            // Hardcoded key has been publicly leaked + disabled by Google.
+        if (apiKey.isBlank()) {
             return Result.Failure(
-                short = "API key is missing or has been blocked. Please open Settings and paste a new Gemini key.",
-                detail = "The default key (AIzaSy...iBw) was reported as leaked by Google and disabled. Get a free key at https://aistudio.google.com/apikey then paste it in Settings.",
+                short = "No Gemini API key set. Open Settings and paste your free key.",
+                detail = "The app ships without an API key. Get a free key at https://aistudio.google.com/apikey then paste it in the Settings screen and tap Save.",
                 needsNewKey = true
             )
         }

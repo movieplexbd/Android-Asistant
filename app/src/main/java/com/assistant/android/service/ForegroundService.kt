@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -14,7 +13,6 @@ import android.speech.RecognitionListener
 import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.assistant.android.R
 import com.assistant.android.ai.GeminiClient
 import com.assistant.android.ai.PromptEngine
 import com.assistant.android.automation.ActionExecutor
@@ -32,16 +30,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /**
  * The brain of the assistant. Wires together STT -> Gemini -> action -> TTS, plus routines and
  * translation, and reports state through MasterController. Speaks narration on every step.
+ *
+ * Accepts text commands too via ACTION_TEXT_COMMAND so the chat UI can drive the same pipeline
+ * even when the device has no STT engine.
  */
 class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListener {
 
-    private lateinit var speechRecognizer: SpeechRecognizerManager
+    private var speechRecognizer: SpeechRecognizerManager? = null
     private lateinit var ttsManager: TTSManager
     private lateinit var geminiClient: GeminiClient
     private lateinit var actionExecutor: ActionExecutor
@@ -52,13 +52,25 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     @Volatile private var ttsReady = false
     @Volatile private var pendingFirstSpeech: String? = null
+    @Volatile private var sttSupported = false
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification("Jarvis active", "Listening for commands…"))
+        startForeground(NOTIFICATION_ID, buildNotification("Jarvis active", "Ready for commands…"))
 
-        speechRecognizer = SpeechRecognizerManager(this, this)
+        sttSupported = SpeechRecognizer.isRecognitionAvailable(this)
+        if (sttSupported) {
+            speechRecognizer = SpeechRecognizerManager(this, this)
+        } else {
+            MasterController.recordError(
+                "Voice recognition not available",
+                "This device has no Speech Recognition engine installed. Install 'Speech Services by Google' " +
+                "from the Play Store, then enable it under Settings → Apps → Default apps → Digital assistant. " +
+                "Until then, use the chat box to type commands — Jarvis will still answer."
+            )
+        }
+
         ttsManager = TTSManager(this, this)
         val key = ApiKeyManager.getApiKey(this)
         val model = ApiKeyManager.getModel(this)
@@ -67,7 +79,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         routineEngine = RoutineEngine(this)
         translationManager = TranslationManager(geminiClient, ttsManager)
         memoryRepository = MemoryRepository(AppDatabase.getDatabase(this))
-        MasterController.recordLog("Assistant service started • model=$model • key=${ApiKeyManager.mask(key)}")
+        MasterController.recordLog("Assistant service started • model=$model • key=${ApiKeyManager.mask(key)} • STT=${sttSupported}")
 
         // Validate the API key in the background so the user is told immediately if it's broken.
         scope.launch { validateKey() }
@@ -79,16 +91,16 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         when (result) {
             is GeminiClient.Result.Success -> {
                 MasterController.recordLog("✓ Gemini key OK (model=${geminiClient.modelName})")
-                speakWhenReady("Jarvis is online and ready. Say Hey Jarvis or tap to talk.")
+                val sttHint = if (sttSupported) "Say Hey Jarvis or tap to talk." else "Voice unavailable — type in the chat box."
+                speakWhenReady("Jarvis is online and ready. $sttHint")
             }
             is GeminiClient.Result.Failure -> {
                 MasterController.recordError(result.short, result.detail)
                 MasterController.transitionTo(MasterController.State.ERROR)
-                val spoken = if (result.needsNewKey) {
+                val spoken = if (result.needsNewKey)
                     "Warning. ${result.short} Open Settings inside the app and paste a new key."
-                } else {
+                else
                     "Warning. ${result.short}"
-                }
                 speakWhenReady(spoken)
             }
         }
@@ -96,20 +108,39 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand action=${intent?.action}")
-        if (intent?.action == ACTION_WAKE) {
-            MasterController.recordLog("Woken by wake-word")
-            speakWhenReady("Yes, I'm listening.")
+        when (intent?.action) {
+            ACTION_WAKE -> {
+                MasterController.recordLog("Woken by wake-word")
+                speakWhenReady("Yes, I'm listening.")
+                startListeningIfPossible()
+            }
+            ACTION_TEXT_COMMAND -> {
+                val text = intent.getStringExtra(EXTRA_TEXT)?.trim().orEmpty()
+                if (text.isNotEmpty()) {
+                    processCommand(text, MasterController.Source.TEXT)
+                }
+            }
+            else -> {
+                MasterController.transitionTo(MasterController.State.LISTENING)
+                startListeningIfPossible()
+            }
         }
-        MasterController.transitionTo(MasterController.State.LISTENING)
-        speechRecognizer.startListening()
         return START_STICKY
+    }
+
+    private fun startListeningIfPossible() {
+        if (sttSupported) {
+            speechRecognizer?.startListening()
+        } else {
+            MasterController.recordLog("STT unavailable — chat input is the only path")
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         super.onDestroy()
-        speechRecognizer.destroy()
+        speechRecognizer?.destroy()
         ttsManager.shutdown()
         scope.cancel()
         MasterController.transitionTo(MasterController.State.IDLE)
@@ -158,16 +189,16 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
     override fun onResults(results: Bundle?) {
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (!matches.isNullOrEmpty()) {
-            processCommand(matches[0])
+            processCommand(matches[0], MasterController.Source.VOICE)
         } else {
             MasterController.recordLog("No speech detected — restarting listener")
-            speechRecognizer.startListening()
+            startListeningIfPossible()
         }
     }
 
-    private fun processCommand(command: String) {
-        Log.d(TAG, "Heard: $command")
-        MasterController.recordCommand(command)
+    private fun processCommand(command: String, source: MasterController.Source) {
+        Log.d(TAG, "Heard ($source): $command")
+        MasterController.recordCommand(command, source)
         MasterController.transitionTo(MasterController.State.THINKING)
         updateNotification("Thinking: $command")
 
@@ -195,7 +226,6 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
                 val json = PromptEngine.parseGeminiResponse(raw)
                 if (json == null) {
                     MasterController.recordLog("Free-text reply (no JSON)")
-                    MasterController.recordReply(raw)
                     speakAndContinue(raw)
                     return@launch
                 }
@@ -246,7 +276,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
                         if (!ok) {
                             val why = "Action '$intent' could not run. Reason: required permission missing, target not found, or intent unsupported on this device."
                             MasterController.recordError("Action failed: $intent", why)
-                            ttsManager.speak("Sorry, I could not complete that action. $why")
+                            ttsManager.speak("Sorry, I could not complete that action.")
                         }
                     }
                 }
@@ -267,7 +297,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
             } finally {
                 MasterController.transitionTo(MasterController.State.LISTENING)
                 updateNotification("Listening…")
-                speechRecognizer.startListening()
+                startListeningIfPossible()
             }
         }
     }
@@ -319,7 +349,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
             MasterController.recordError(short, full)
             ttsManager.speak(full)
         }
-        speechRecognizer.startListening()
+        startListeningIfPossible()
     }
 
     override fun onReadyForSpeech(params: Bundle?) {
@@ -357,5 +387,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         private const val NOTIFICATION_CHANNEL_ID = "AssistantServiceChannel"
         private const val NOTIFICATION_ID = 1
         const val ACTION_WAKE = "com.assistant.android.action.WAKE"
+        const val ACTION_TEXT_COMMAND = "com.assistant.android.action.TEXT_COMMAND"
+        const val EXTRA_TEXT = "extra_text"
     }
 }

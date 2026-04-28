@@ -1,4 +1,4 @@
-name: Android CI/CD
+name: Android CI/CD — Build & Release APK
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
           fi
 
       - name: Commit keystore back to repo
-        if: steps.keystore.outputs.created == 'true'
+        if: steps.keystore.outputs.created == 'true' && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -59,43 +59,59 @@ jobs:
           git push origin HEAD:${{ github.ref_name }}
 
       - name: Build release APK
-        run: ./gradlew assembleRelease --stacktrace --no-daemon
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          ./gradlew assembleRelease --stacktrace --no-daemon \
+            -PgeminiApiKey="${GEMINI_API_KEY}"
 
       - name: Rename APK
         run: |
           mkdir -p build_output
-          cp app/build/outputs/apk/release/*.apk build_output/nexus-assistant-release.apk
+          cp app/build/outputs/apk/release/*.apk build_output/jarvis-assistant-v4.3-build${{ github.run_number }}.apk
           ls -lh build_output
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-assistant-release-apk
-          path: build_output/nexus-assistant-release.apk
+          name: jarvis-assistant-release-apk
+          path: build_output/*.apk
           if-no-files-found: error
           retention-days: 90
 
-      - name: Create Release
+      - name: Create GitHub Release with APK
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: softprops/action-gh-release@v1
         with:
-          files: build_output/nexus-assistant-release.apk
-          tag_name: v4.1.${{ github.run_number }}
-          name: Release v4.1.${{ github.run_number }}
+          files: build_output/*.apk
+          tag_name: v4.3.${{ github.run_number }}
+          name: "Jarvis Assistant v4.3 — build ${{ github.run_number }}"
           body: |
-            Automated Build for Android Assistant (Nexus Edition)
-            
-            **Changes in this release:**
-            - Fixed Android 10 (API 29) compatibility issues.
-            - Adjusted `targetSdk` to 33 for better compatibility with older devices.
-            - Lowered `minSdk` to 24.
-            - Added missing permissions for phone, contacts, and storage.
-            - Added Assistant and Voice Command intent filters to `MainActivity`.
-            - Improved background service stability.
-            
-            **Installation:**
-            Download the `nexus-assistant-release.apk` below and install it on your device.
+            ## Jarvis Assistant — build ${{ github.run_number }}
+
+            ### Direct download
+            Scroll down to **Assets** and tap `jarvis-assistant-v4.3-build${{ github.run_number }}.apk` to install.
+
+            ### What's in this build
+            - 💬 **Text chat interface** — type commands like *"ammu ke call koro"* when voice is unavailable
+            - 📞 **Smart contact resolver** — Bangla/English aliases (ammu, abbu, bhai, boss…) auto-match your phonebook
+            - 🐛 **One-tap bug report exporter** — collects state, logs, crashes, logcat and shares as a file
+            - 🚨 **Crash recovery** — uncaught exceptions are saved and shown on next launch
+            - ⚡ **Quick action chips** — tap to fire common commands instantly
+            - 🛡 **STT-missing fallback banner** — guides you to fix or use chat instead
+            - 🔧 **Fixed** broken settings button XML, removed leaked default key, deduped CI workflow
+            - 📝 **Long-press copy** on every status / debug / chat field
+
+            ### After install
+            1. Open the app and grant the requested permissions (mic, contacts, calls, sms).
+            2. Tap **API Settings** and paste your free Gemini key from https://aistudio.google.com/apikey
+            3. Tap **Start Assistant**, then either talk or type in the chat box.
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Print download link
+        if: github.event_name == 'push'
+        run: |
+          echo "::notice title=APK Download::https://github.com/${{ github.repository }}/releases/tag/v4.3.${{ github.run_number }}"

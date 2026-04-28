@@ -1,6 +1,5 @@
 package com.assistant.android.automation
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -12,11 +11,14 @@ import android.provider.Settings
 import android.telephony.SmsManager
 import android.util.Log
 import android.widget.Toast
+import com.assistant.android.contacts.ContactResolver
+import com.assistant.android.core.MasterController
 import org.json.JSONObject
 
 /**
  * Executes a single intent. Supports the v4 NEXUS contract — including routines (chained intents)
- * and next_step follow-ups.
+ * and next_step follow-ups. Resolves contact names (e.g. "ammu", "boss") to phone numbers
+ * via ContactResolver before dialing or texting.
  */
 class ActionExecutor(private val context: Context) {
 
@@ -34,15 +36,31 @@ class ActionExecutor(private val context: Context) {
         Log.d(tag, "Executing intent=$intent target=$target")
         return when (intent) {
             "call" -> makePhoneCall(target)
+            "sms", "send_sms", "message" -> sendMessage(target, message)
             "open_app" -> openApp(target)
-            "message" -> sendMessage(target, message)
-            "reminder" -> setReminder(message, time)
+            "reminder", "alarm", "set_alarm" -> setReminder(message ?: target, time)
             "automation" -> handleAutomation(target)
+            "open_settings", "settings" -> startSettings(Settings.ACTION_SETTINGS)
+            "open_wifi", "wifi_on", "wifi_off" -> startSettings(Settings.ACTION_WIFI_SETTINGS)
+            "open_bluetooth", "bluetooth_on", "bluetooth_off" -> startSettings(Settings.ACTION_BLUETOOTH_SETTINGS)
+            "open_location" -> startSettings(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+            "open_battery" -> startSettings(Settings.ACTION_BATTERY_SAVER_SETTINGS)
+            "volume_up" -> changeVolume(AudioManager.ADJUST_RAISE)
+            "volume_down" -> changeVolume(AudioManager.ADJUST_LOWER)
+            "mute" -> changeVolume(AudioManager.ADJUST_MUTE)
+            "camera", "open_camera" -> openCamera()
+            "search", "web_search" -> webSearch(target)
+            "navigate" -> navigate(target)
+            "home" -> a11yAction { it.goHome() }
+            "back" -> a11yAction { it.goBack() }
+            "scroll_up" -> a11yAction { it.scrollUp() }
+            "scroll_down" -> a11yAction { it.scrollDown() }
+            "tap_text" -> if (target != null) a11yAction { it.clickOnText(target) } else false
             "routine" -> true // Routine engine handles steps separately.
             "translate" -> handleTranslation(message, target)
             "vision" -> true // Vision is triggered from UI/camera flow.
             "biometric_auth" -> requestBiometricAuth(message)
-            "info", "none", "" -> true
+            "info", "answer", "chat", "none", "" -> true
             else -> {
                 Log.w(tag, "Unknown intent: $intent")
                 false
@@ -50,25 +68,40 @@ class ActionExecutor(private val context: Context) {
         }
     }
 
-    private fun makePhoneCall(phoneNumber: String?): Boolean {
-        if (phoneNumber.isNullOrEmpty()) return false
+    private fun makePhoneCall(rawTarget: String?): Boolean {
+        if (rawTarget.isNullOrBlank()) return false
+        val phoneNumber = if (ContactResolver.isPhoneNumber(rawTarget)) {
+            rawTarget
+        } else {
+            val resolved = ContactResolver.resolve(context, rawTarget)
+            if (resolved == null) {
+                MasterController.recordError(
+                    "Contact not found: \"$rawTarget\"",
+                    "I could not find anyone called \"$rawTarget\" in your contacts. Save them in your phonebook (or grant Contacts permission) and try again."
+                )
+                Toast.makeText(context, "No contact named \"$rawTarget\"", Toast.LENGTH_LONG).show()
+                return false
+            }
+            resolved
+        }
         val callIntent = Intent(Intent.ACTION_CALL).apply {
             data = Uri.parse("tel:$phoneNumber")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        return runCatching { context.startActivity(callIntent); true }.getOrDefault(false)
+        return runCatching { context.startActivity(callIntent); true }.getOrElse {
+            MasterController.recordError("Call failed", "${it.javaClass.simpleName}: ${it.message}")
+            false
+        }
     }
 
     private fun openApp(appNameOrPackage: String?): Boolean {
         if (appNameOrPackage.isNullOrEmpty()) return false
-        // Try as package id first.
         val byPackage = context.packageManager.getLaunchIntentForPackage(appNameOrPackage)
         if (byPackage != null) {
             byPackage.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(byPackage)
             return true
         }
-        // Fall back to common-name resolution.
         val resolved = COMMON_APP_PACKAGES[appNameOrPackage.lowercase()]
             ?: COMMON_APP_PACKAGES.entries.firstOrNull { appNameOrPackage.lowercase().contains(it.key) }?.value
         if (resolved != null) {
@@ -79,14 +112,21 @@ class ActionExecutor(private val context: Context) {
                 return true
             }
         }
-        // Fall back to web search.
         val web = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=$appNameOrPackage"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(web); true }.getOrDefault(false)
     }
 
-    private fun sendMessage(phoneNumber: String?, message: String?): Boolean {
-        if (phoneNumber.isNullOrEmpty() || message.isNullOrEmpty()) return false
+    private fun sendMessage(rawTarget: String?, message: String?): Boolean {
+        if (rawTarget.isNullOrEmpty() || message.isNullOrEmpty()) return false
+        val phoneNumber = if (ContactResolver.isPhoneNumber(rawTarget)) rawTarget
+            else ContactResolver.resolve(context, rawTarget) ?: run {
+                MasterController.recordError(
+                    "Contact not found: \"$rawTarget\"",
+                    "I could not find a contact named \"$rawTarget\" to send the message to."
+                )
+                return false
+            }
         return try {
             @Suppress("DEPRECATION")
             val smsManager: SmsManager =
@@ -96,6 +136,7 @@ class ActionExecutor(private val context: Context) {
             true
         } catch (e: Exception) {
             Log.e(tag, "SMS failed: ${e.message}")
+            MasterController.recordError("SMS failed", "${e.javaClass.name}: ${e.message}")
             false
         }
     }
@@ -108,7 +149,6 @@ class ActionExecutor(private val context: Context) {
                 putExtra(AlarmClock.EXTRA_SKIP_UI, false)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            // Best effort: parse "7:30" / "07:30 AM"
             time?.let { parseTime(it) }?.let { (h, m) ->
                 intent.putExtra(AlarmClock.EXTRA_HOUR, h)
                 intent.putExtra(AlarmClock.EXTRA_MINUTES, m)
@@ -142,11 +182,35 @@ class ActionExecutor(private val context: Context) {
             "volume_up" -> changeVolume(AudioManager.ADJUST_RAISE)
             "volume_down" -> changeVolume(AudioManager.ADJUST_LOWER)
             "mute" -> changeVolume(AudioManager.ADJUST_MUTE)
-            "open_camera" -> {
-                val i = Intent(MediaStore.ACTION_IMAGE_CAPTURE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                runCatching { context.startActivity(i); true }.getOrDefault(false)
-            }
+            "open_camera" -> openCamera()
             else -> false
+        }
+    }
+
+    private fun openCamera(): Boolean {
+        val i = Intent(MediaStore.ACTION_IMAGE_CAPTURE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(i); true }.getOrDefault(false)
+    }
+
+    private fun webSearch(query: String?): Boolean {
+        if (query.isNullOrBlank()) return false
+        val i = Intent(Intent.ACTION_VIEW,
+            Uri.parse("https://www.google.com/search?q=" + Uri.encode(query)))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(i); true }.getOrDefault(false)
+    }
+
+    private fun navigate(destination: String?): Boolean {
+        if (destination.isNullOrBlank()) return false
+        val i = Intent(Intent.ACTION_VIEW,
+            Uri.parse("google.navigation:q=" + Uri.encode(destination)))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(i); true }.getOrElse {
+            // fallback to maps web
+            val web = Intent(Intent.ACTION_VIEW,
+                Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(destination)))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(web); true }.getOrDefault(false)
         }
     }
 
@@ -162,6 +226,18 @@ class ActionExecutor(private val context: Context) {
         return true
     }
 
+    private fun a11yAction(block: (AssistantAccessibilityService) -> Boolean): Boolean {
+        val svc = AssistantAccessibilityService.instance
+        if (svc == null) {
+            MasterController.recordError(
+                "Accessibility service not enabled",
+                "Settings → Accessibility → Jarvis Automation must be turned on for tap/scroll/back/home actions."
+            )
+            return false
+        }
+        return runCatching { block(svc) }.getOrDefault(false)
+    }
+
     private fun requestBiometricAuth(reason: String?): Boolean {
         Log.d(tag, "Biometric auth requested: $reason")
         Toast.makeText(context, "Authentication required: ${reason ?: "secure action"}", Toast.LENGTH_LONG).show()
@@ -170,7 +246,6 @@ class ActionExecutor(private val context: Context) {
 
     private fun handleTranslation(text: String?, targetLang: String?): Boolean {
         Log.d(tag, "Translate to $targetLang: $text")
-        // The actual translation is performed by GeminiClient (called from ForegroundService).
         return true
     }
 
@@ -191,7 +266,16 @@ class ActionExecutor(private val context: Context) {
             "tiktok" to "com.zhiliaoapp.musically",
             "settings" to "com.android.settings",
             "phone" to "com.google.android.dialer",
-            "camera" to "com.android.camera"
+            "dialer" to "com.google.android.dialer",
+            "camera" to "com.android.camera",
+            "calendar" to "com.google.android.calendar",
+            "clock" to "com.google.android.deskclock",
+            "contacts" to "com.google.android.contacts",
+            "calculator" to "com.google.android.calculator",
+            "drive" to "com.google.android.apps.docs",
+            "photos" to "com.google.android.apps.photos",
+            "play store" to "com.android.vending",
+            "playstore" to "com.android.vending"
         )
     }
 }
