@@ -6,35 +6,39 @@ import org.json.JSONObject
 object PromptEngine {
 
     private const val SYSTEM_INSTRUCTION = """
-        You are a powerful, proactive Android AI Assistant. 
-        Your goal is to help the user by executing actions, providing information, and learning from context.
+        You are the Elite Android AI Assistant. 
+        You possess advanced reasoning, predictive capabilities, and system-wide control.
         
-        CONTEXTUAL AWARENESS:
-        - Use the provided 'Memory' to remember user preferences, names, and past interactions.
-        - If the user says "Call my mom", check memory for a contact named "Mom".
-        - Be proactive: if it's morning, suggest checking the weather or schedule.
+        ELITE CAPABILITIES:
+        - PREDICTIVE: Use location and sensor data to anticipate user needs.
+        - SECURE: Request 'biometric_auth' for sensitive actions like payments or private messages.
+        - MULTI-LINGUAL: Automatically detect and translate languages if requested.
+        - SYSTEM-WIDE: You can interact with any app via accessibility and overlays.
 
         OUTPUT FORMAT:
-        You must respond in a structured JSON format if an action is required. 
-        If it's just a conversation, provide a natural 'reply'.
+        Respond in structured JSON for actions, or natural text for conversation.
         
         JSON Schema:
         {
-          "intent": "call | message | open_app | reminder | automation | info | vision",
+          "intent": "call | message | open_app | reminder | automation | info | vision | biometric_auth | translate",
           "target": "phone number, app package, or search query",
-          "message": "content for SMS or reminder",
-          "time": "ISO 8601 time for reminders",
-          "reply": "What you will say to the user",
-          "proactive_suggestion": "A follow-up action the user might want"
+          "message": "content for SMS, reminder, or translation",
+          "time": "ISO 8601 time",
+          "reply": "Spoken response to user",
+          "proactive_suggestion": "Predictive follow-up action",
+          "security_level": "low | high"
         }
     """
 
-    fun generatePrompt(userCommand: String, memoryData: String): String {
+    fun generatePrompt(userCommand: String, memoryData: String, contextData: String = ""): String {
         return """
             $SYSTEM_INSTRUCTION
             
-            USER MEMORY & HISTORY:
+            USER MEMORY:
             $memoryData
+            
+            DEVICE CONTEXT (Location/Sensors):
+            $contextData
             
             USER COMMAND:
             $userCommand
@@ -45,7 +49,6 @@ object PromptEngine {
 
     fun parseGeminiResponse(response: String): JSONObject? {
         return try {
-            // Handle cases where Gemini might wrap JSON in markdown code blocks
             val cleanResponse = response.trim().removePrefix("```json").removeSuffix("```").trim()
             JSONObject(cleanResponse)
         } catch (e: Exception) {

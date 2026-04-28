@@ -12,11 +12,10 @@ android {
         applicationId "com.assistant.android"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "3.0-Elite"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
         buildConfigField "String", "GEMINI_API_KEY", project.properties["GEMINI_API_KEY"] ?: "\"YOUR_GEMINI_API_KEY\""
     }
 
@@ -45,26 +44,26 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     
-    // Lifecycle
+    // Biometric
+    implementation "androidx.biometric:biometric:1.2.0-alpha05"
+    
+    // Location
+    implementation "com.google.android.gms:play-services-location:21.1.0"
+
+    // Lifecycle & Coroutines
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
     implementation "androidx.lifecycle:lifecycle-service:2.7.0"
-
-    // Coroutines
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
 
-    // Room components
+    // Room
     implementation "androidx.room:room-runtime:2.6.1"
     ksp "androidx.room:room-compiler:2.6.1"
     implementation "androidx.room:room-ktx:2.6.1"
 
-    // Gemini API
+    // Gemini
     implementation "com.google.generativeai:generativeai:0.7.0"
 
-    // Animations & UI
+    // UI
     implementation 'com.airbnb.android:lottie:6.3.0'
-    
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
