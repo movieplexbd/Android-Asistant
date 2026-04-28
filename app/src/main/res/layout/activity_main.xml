@@ -230,6 +230,21 @@
                 app:iconTint="@color/nexus_secondary" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/testVoiceButton"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="10dp"
+                android:text="Test Voice / Mic Diagnostics"
+                android:textAllCaps="false"
+                android:textColor="@color/nexus_secondary"
+                android:textSize="16sp"
+                app:cornerRadius="16dp"
+                app:icon="@android:drawable/ic_btn_speak_now"
+                app:iconGravity="textStart"
+                app:iconTint="@color/nexus_secondary" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/settingsButton"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
@@ -240,7 +255,8 @@
                 android:textColor="@color/white"
                 android:textSize="16sp"
                 app:cornerRadius="16dp"
-                app:strokeColor="@color/state_thinking"
+                app:strokeColor="@color/nexus_card_alt" />
+lor/state_thinking"
                 app:icon="@android:drawable/ic_menu_manage"
                 app:iconGravity="textStart"
                 app:iconTint="@color/state_thinking" />

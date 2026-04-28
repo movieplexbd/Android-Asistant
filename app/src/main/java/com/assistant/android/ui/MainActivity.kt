@@ -40,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var voiceButton: MaterialButton
     private lateinit var wakeWordButton: MaterialButton
     private lateinit var overlayButton: MaterialButton
+    private lateinit var testVoiceButton: MaterialButton
     private lateinit var settingsButton: MaterialButton
     private lateinit var copyDebugButton: MaterialButton
     private lateinit var clearDebugButton: MaterialButton
@@ -63,6 +64,7 @@ class MainActivity : AppCompatActivity() {
         voiceButton = findViewById(R.id.voiceButton)
         wakeWordButton = findViewById(R.id.wakeWordButton)
         overlayButton = findViewById(R.id.overlayButton)
+        testVoiceButton = findViewById(R.id.testVoiceButton)
         settingsButton = findViewById(R.id.settingsButton)
         copyDebugButton = findViewById(R.id.copyDebugButton)
         clearDebugButton = findViewById(R.id.clearDebugButton)
@@ -75,6 +77,7 @@ class MainActivity : AppCompatActivity() {
         voiceButton.setOnClickListener { toggleService(ForegroundService::class.java, voiceButton, "Assistant") }
         wakeWordButton.setOnClickListener { toggleService(WakeWordService::class.java, wakeWordButton, "Wake Word (Hey Jarvis)") }
         overlayButton.setOnClickListener { toggleOverlay() }
+        testVoiceButton.setOnClickListener { runVoiceDiagnostics() }
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -232,6 +235,52 @@ class MainActivity : AppCompatActivity() {
             return
         }
         toggleService(OverlayService::class.java, overlayButton, "Overlay")
+    }
+
+    private fun runVoiceDiagnostics() {
+        val sb = StringBuilder()
+        sb.appendLine("--- VOICE DIAGNOSTICS ---")
+
+        // 1. Check Permissions
+        val micPerm = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        sb.appendLine("Microphone Permission: ${if (micPerm) "GRANTED ✓" else "DENIED ✗"}")
+
+        // 2. Check if Speech Recognition is available
+        val available = android.speech.SpeechRecognizer.isRecognitionAvailable(this)
+        sb.appendLine("System STT Available: ${if (available) "YES ✓" else "NO ✗"}")
+
+        // 3. Check if Google app is enabled (common cause of STT failure)
+        try {
+            val googleAppEnabled = packageManager.getApplicationInfo("com.google.android.googlequicksearchbox", 0).enabled
+            sb.appendLine("Google App (STT Engine): ${if (googleAppEnabled) "ENABLED ✓" else "DISABLED ✗"}")
+        } catch (e: Exception) {
+            sb.appendLine("Google App (STT Engine): NOT FOUND ✗")
+        }
+
+        // 4. Check Audio Manager
+        val am = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val isMicMuted = am.isMicrophoneMute
+        sb.appendLine("Mic Hardware Muted: ${if (isMicMuted) "YES ✗" else "NO ✓"}")
+
+        // 5. Check Service Status
+        val isRunning = isServiceRunning(ForegroundService::class.java)
+        sb.appendLine("Assistant Service: ${if (isRunning) "RUNNING ✓" else "STOPPED"}")
+
+        val result = sb.toString()
+        MasterController.recordLog("Diagnostics run")
+        MasterController.recordError("Voice Diagnostics", result)
+
+        Toast.makeText(this, "Diagnostics complete. Check Debug Console.", Toast.LENGTH_LONG).show()
+
+        // If service is running, trigger a test listen
+        if (isRunning) {
+            val intent = Intent(this, ForegroundService::class.java).apply {
+                action = ForegroundService.ACTION_WAKE
+            }
+            startService(intent)
+        } else {
+            Toast.makeText(this, "Start Assistant first to test live hearing.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     @Suppress("DEPRECATION")

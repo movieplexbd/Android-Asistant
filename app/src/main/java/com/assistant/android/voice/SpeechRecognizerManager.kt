@@ -34,7 +34,18 @@ class SpeechRecognizerManager(
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-            language?.let { putExtra(RecognizerIntent.EXTRA_LANGUAGE, it) }
+            
+            // Support for multilingual recognition
+            if (language != null) {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+            } else {
+                // Default to English + Bangla for better detection in your region
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+                putExtra(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES, arrayListOf("en-US", "bn-BD"))
+                // Some devices use EXTRA_LANGUAGE_WHITELIST
+                putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("bn-BD"))
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
