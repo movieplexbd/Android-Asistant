@@ -17,7 +17,7 @@ class SpeechRecognizerManager(private val context: Context, private val listener
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
             speechRecognizer?.setRecognitionListener(listener)
         } else {
-            Log.e("SpeechRecognizerManager", "Speech recognition not available")
+            Log.e("SpeechRecognizer", "Speech recognition not available on this device")
         }
     }
 
@@ -26,6 +26,11 @@ class SpeechRecognizerManager(private val context: Context, private val listener
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            
+            // Prefer offline recognition if available (API 31+)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            }
         }
         speechRecognizer?.startListening(intent)
     }
@@ -36,5 +41,6 @@ class SpeechRecognizerManager(private val context: Context, private val listener
 
     fun destroy() {
         speechRecognizer?.destroy()
+        speechRecognizer = null
     }
 }

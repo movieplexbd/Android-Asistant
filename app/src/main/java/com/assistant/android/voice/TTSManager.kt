@@ -2,20 +2,17 @@ package com.assistant.android.voice
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import android.util.Log
 import java.util.Locale
 
-class TTSManager(private val context: Context, private val initListener: OnInitListener) : TextToSpeech.OnInitListener {
+class TTSManager(context: Context, private val initListener: OnInitListener) : TextToSpeech.OnInitListener {
 
-    private var tts: TextToSpeech? = null
+    private var tts: TextToSpeech? = TextToSpeech(context, this)
     private var isInitialized = false
 
     interface OnInitListener {
         fun onTTSInitialized(success: Boolean)
-    }
-
-    init {
-        tts = TextToSpeech(context, this)
     }
 
     override fun onInit(status: Int) {
@@ -29,21 +26,34 @@ class TTSManager(private val context: Context, private val initListener: OnInitL
                 initListener.onTTSInitialized(true)
             }
         } else {
-            Log.e("TTSManager", "TTS Initialization failed")
+            Log.e("TTSManager", "Initialization failed")
             initListener.onTTSInitialized(false)
         }
     }
 
     fun speak(text: String) {
         if (isInitialized) {
-            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "")
-        } else {
-            Log.e("TTSManager", "TTS not initialized")
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
         }
+    }
+
+    fun setVoice(voiceName: String) {
+        if (isInitialized) {
+            val voices = tts?.voices
+            val selectedVoice = voices?.find { it.name.contains(voiceName, ignoreCase = true) }
+            selectedVoice?.let {
+                tts?.voice = it
+            }
+        }
+    }
+
+    fun getAvailableVoices(): List<String> {
+        return tts?.voices?.map { it.name } ?: emptyList()
     }
 
     fun shutdown() {
         tts?.stop()
         tts?.shutdown()
+        tts = null
     }
 }
