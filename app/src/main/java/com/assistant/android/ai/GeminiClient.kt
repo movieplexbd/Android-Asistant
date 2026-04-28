@@ -11,6 +11,7 @@ import com.google.generativeai.type.defineFunction
 import com.google.generativeai.type.Schema
 import com.google.generativeai.type.generationConfig
 import com.google.generativeai.type.content
+import com.google.generativeai.type.FunctionCallPart
 
 class GeminiClient(private val apiKey: String) {
 
@@ -88,7 +89,7 @@ class GeminiClient(private val apiKey: String) {
     suspend fun getGeminiResponse(prompt: String): String? {
         return try {
             val response = textModel.generateContent(prompt)
-            val functionCalls = response.candidates.first().content.parts.filterIsInstance<com.google.generativeai.type.FunctionCallPart>()
+            val functionCalls = response.candidates.first().content.parts.filterIsInstance<FunctionCallPart>()
             if (functionCalls.isNotEmpty()) {
                 val call = functionCalls.first()
                 "{\"function\": \"${call.name}\", \"args\": ${call.args}}"
