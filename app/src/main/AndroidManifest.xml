@@ -35,6 +35,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="false"
+            android:label="API Settings"
+            android:parentActivityName=".ui.MainActivity" />
+
         <service
             android:name=".service.ForegroundService"
             android:enabled="true"

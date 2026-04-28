@@ -72,17 +72,12 @@
                             android:letterSpacing="0.05" />
                     </LinearLayout>
 
-                    <!-- Audio level bar -->
-                    <ProgressBar
-                        android:id="@+id/audioLevelBar"
-                        style="?android:attr/progressBarStyleHorizontal"
+                    <!-- Live waveform -->
+                    <com.assistant.android.ui.WaveformView
+                        android:id="@+id/waveform"
                         android:layout_width="match_parent"
-                        android:layout_height="8dp"
-                        android:layout_marginTop="12dp"
-                        android:max="100"
-                        android:progress="0"
-                        android:progressTint="@color/state_listening"
-                        android:progressBackgroundTint="@color/nexus_card_alt" />
+                        android:layout_height="64dp"
+                        android:layout_marginTop="14dp" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -223,7 +218,7 @@
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="10dp"
                 android:text="Toggle Floating Bubble"
                 android:textAllCaps="false"
                 android:textColor="@color/white"
@@ -233,6 +228,125 @@
                 app:icon="@android:drawable/ic_menu_view"
                 app:iconGravity="textStart"
                 app:iconTint="@color/nexus_secondary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settingsButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="16dp"
+                android:text="API Settings (paste new key here)"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                app:cornerRadius="16dp"
+                app:strokeColor="@color/state_thinking"
+                app:icon="@android:drawable/ic_menu_manage"
+                app:iconGravity="textStart"
+                app:iconTint="@color/state_thinking" />
+
+            <!-- DEBUG CONSOLE -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/nexus_card"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="6dp"
+                app:strokeColor="@color/state_error"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="DEBUG CONSOLE"
+                            android:textColor="@color/state_error"
+                            android:textSize="12sp"
+                            android:letterSpacing="0.2"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/copyDebugButton"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:paddingStart="14dp"
+                            android:paddingEnd="14dp"
+                            android:text="Copy"
+                            android:textAllCaps="false"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/clearDebugButton"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="6dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:text="Clear"
+                            android:textAllCaps="false"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Last failure (short)"
+                        android:textColor="@color/text_dim"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/errorShortTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="No errors yet."
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textIsSelectable="true" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="Full detail (tap to select / Copy button to copy)"
+                        android:textColor="@color/text_dim"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/errorDetailTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:padding="10dp"
+                        android:background="#FF0B0E1F"
+                        android:text="—"
+                        android:textColor="#FFFFB4B4"
+                        android:textSize="12sp"
+                        android:fontFamily="monospace"
+                        android:textIsSelectable="true" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- ACTIVITY LOG -->
             <com.google.android.material.card.MaterialCardView

@@ -1,16 +1,16 @@
 package com.assistant.android.ui
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -36,10 +36,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var actionTextView: TextView
     private lateinit var replyTextView: TextView
     private lateinit var logTextView: TextView
-    private lateinit var audioLevelBar: ProgressBar
+    private lateinit var waveform: WaveformView
     private lateinit var voiceButton: MaterialButton
     private lateinit var wakeWordButton: MaterialButton
     private lateinit var overlayButton: MaterialButton
+    private lateinit var settingsButton: MaterialButton
+    private lateinit var copyDebugButton: MaterialButton
+    private lateinit var clearDebugButton: MaterialButton
+    private lateinit var errorShortTextView: TextView
+    private lateinit var errorDetailTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,19 +59,37 @@ class MainActivity : AppCompatActivity() {
         actionTextView = findViewById(R.id.actionTextView)
         replyTextView = findViewById(R.id.replyTextView)
         logTextView = findViewById(R.id.logTextView)
-        audioLevelBar = findViewById(R.id.audioLevelBar)
+        waveform = findViewById(R.id.waveform)
         voiceButton = findViewById(R.id.voiceButton)
         wakeWordButton = findViewById(R.id.wakeWordButton)
         overlayButton = findViewById(R.id.overlayButton)
+        settingsButton = findViewById(R.id.settingsButton)
+        copyDebugButton = findViewById(R.id.copyDebugButton)
+        clearDebugButton = findViewById(R.id.clearDebugButton)
+        errorShortTextView = findViewById(R.id.errorShortTextView)
+        errorDetailTextView = findViewById(R.id.errorDetailTextView)
 
-        // Sync button labels to actual service running state
         refreshButtonLabels()
-
         checkPermissions()
 
         voiceButton.setOnClickListener { toggleService(ForegroundService::class.java, voiceButton, "Assistant") }
         wakeWordButton.setOnClickListener { toggleService(WakeWordService::class.java, wakeWordButton, "Wake Word (Hey Jarvis)") }
         overlayButton.setOnClickListener { toggleOverlay() }
+        settingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        copyDebugButton.setOnClickListener {
+            val text = buildDebugBundle()
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("Jarvis debug", text))
+            Toast.makeText(this, "Debug info copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+        clearDebugButton.setOnClickListener {
+            MasterController.clearError()
+            errorShortTextView.text = "No errors yet."
+            errorDetailTextView.text = "—"
+        }
 
         observeMaster()
     }
@@ -74,6 +97,28 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshButtonLabels()
+    }
+
+    private fun buildDebugBundle(): String {
+        val err = MasterController.lastError.value
+        val state = MasterController.state.value
+        val stats = MasterController.stats.value
+        val logs = MasterController.logs.value
+        return buildString {
+            appendLine("=== JARVIS DEBUG SNAPSHOT ===")
+            appendLine("State: $state")
+            appendLine("Stats: cmd=${stats.commandsHandled} routines=${stats.routinesRun} translations=${stats.translationsDone} errors=${stats.errors}")
+            appendLine("Last command: ${MasterController.lastCommand.value ?: "(none)"}")
+            appendLine("Last reply  : ${MasterController.lastReply.value ?: "(none)"}")
+            appendLine("Last action : ${MasterController.actionInfo.value ?: "(none)"}")
+            appendLine("Last error  : ${err?.short ?: "(none)"}")
+            appendLine()
+            appendLine("--- Error detail ---")
+            appendLine(err?.detail ?: "(none)")
+            appendLine()
+            appendLine("--- Recent activity log ---")
+            logs.forEach { appendLine(it) }
+        }
     }
 
     private fun observeMaster() {
@@ -89,37 +134,26 @@ class MainActivity : AppCompatActivity() {
                     MasterController.State.ERROR -> R.color.state_error
                 }
                 stateDot.setBackgroundColor(ContextCompat.getColor(this@MainActivity, color))
+                waveform.setColor(ContextCompat.getColor(this@MainActivity, color))
             }
         }
         lifecycleScope.launch {
-            MasterController.audioLevel.collect { lvl ->
-                audioLevelBar.progress = (lvl * 100).toInt()
-            }
+            MasterController.audioLevel.collect { lvl -> waveform.setLevel(lvl) }
         }
         lifecycleScope.launch {
-            MasterController.partial.collect { p ->
-                partialTextView.text = if (p.isBlank()) "—" else p
-            }
+            MasterController.partial.collect { p -> partialTextView.text = if (p.isBlank()) "—" else p }
         }
         lifecycleScope.launch {
-            MasterController.lastCommand.collect { c ->
-                heardTextView.text = c?.takeIf { it.isNotBlank() } ?: "—"
-            }
+            MasterController.lastCommand.collect { c -> heardTextView.text = c?.takeIf { it.isNotBlank() } ?: "—" }
         }
         lifecycleScope.launch {
-            MasterController.understood.collect { u ->
-                understoodTextView.text = u?.takeIf { it.isNotBlank() } ?: "—"
-            }
+            MasterController.understood.collect { u -> understoodTextView.text = u?.takeIf { it.isNotBlank() } ?: "—" }
         }
         lifecycleScope.launch {
-            MasterController.actionInfo.collect { a ->
-                actionTextView.text = a?.takeIf { it.isNotBlank() } ?: "—"
-            }
+            MasterController.actionInfo.collect { a -> actionTextView.text = a?.takeIf { it.isNotBlank() } ?: "—" }
         }
         lifecycleScope.launch {
-            MasterController.lastReply.collect { r ->
-                replyTextView.text = r?.takeIf { it.isNotBlank() } ?: "—"
-            }
+            MasterController.lastReply.collect { r -> replyTextView.text = r?.takeIf { it.isNotBlank() } ?: "—" }
         }
         lifecycleScope.launch {
             MasterController.logs.collect { lines ->
@@ -130,6 +164,17 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             MasterController.stats.collect { s ->
                 statsTextView.text = "Commands: ${s.commandsHandled}  •  Routines: ${s.routinesRun}  •  Translations: ${s.translationsDone}  •  Errors: ${s.errors}"
+            }
+        }
+        lifecycleScope.launch {
+            MasterController.lastError.collect { err ->
+                if (err == null) {
+                    errorShortTextView.text = "No errors yet."
+                    errorDetailTextView.text = "—"
+                } else {
+                    errorShortTextView.text = err.short
+                    errorDetailTextView.text = err.detail
+                }
             }
         }
     }
