@@ -1,0 +1,11 @@
+package com.assistant.android.memory.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "context_table")
+data class ContextEntity(
+    @PrimaryKey val key: String,
+    val value: String,
+    val timestamp: Long
+)
