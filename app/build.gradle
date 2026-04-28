@@ -19,6 +19,18 @@ android {
         buildConfigField "String", "GEMINI_API_KEY", "\"AIzaSyDBWUUZ8zguYRg--jfe5MAR2RtnhUb2iBw\""
     }
 
+    signingConfigs {
+        release {
+            def ksFile = file("release.keystore")
+            if (ksFile.exists()) {
+                storeFile ksFile
+                storePassword "nexus2026"
+                keyAlias "nexuskey"
+                keyPassword "nexus2026"
+            }
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
@@ -26,6 +38,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
