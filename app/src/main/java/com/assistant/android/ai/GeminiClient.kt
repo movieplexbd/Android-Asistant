@@ -162,16 +162,20 @@ class GeminiClient(
         }
     }
 
-    private fun parseText(raw: String): String? = try {
-        val candidates = JSONObject(raw).optJSONArray("candidates") ?: return null
-        if (candidates.length() == 0) return null
-        val parts = candidates.getJSONObject(0).optJSONObject("content")?.optJSONArray("parts") ?: return null
-        val sb = StringBuilder()
-        for (i in 0 until parts.length()) {
-            sb.append(parts.getJSONObject(i).optString("text"))
+    private fun parseText(raw: String): String? {
+        return try {
+            val candidates = JSONObject(raw).optJSONArray("candidates") ?: return null
+            if (candidates.length() == 0) return null
+            val parts = candidates.getJSONObject(0).optJSONObject("content")?.optJSONArray("parts") ?: return null
+            val sb = StringBuilder()
+            for (i in 0 until parts.length()) {
+                sb.append(parts.getJSONObject(i).optString("text"))
+            }
+            sb.toString().trim().ifEmpty { null }
+        } catch (e: Exception) {
+            null
         }
-        sb.toString().trim().ifEmpty { null }
-    } catch (e: Exception) { null }
+    }
 
     private fun parseError(raw: String): Pair<String, String> = try {
         val err = JSONObject(raw).optJSONObject("error")
