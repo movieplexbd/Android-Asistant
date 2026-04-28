@@ -20,7 +20,14 @@ class SpeechRecognizerManager(
     @Volatile var continuous: Boolean = true
 
     init {
-        if (SpeechRecognizer.isRecognitionAvailable(context)) {
+        initializeRecognizer()
+    }
+
+    fun isAvailable(): Boolean = SpeechRecognizer.isRecognitionAvailable(context)
+
+    private fun initializeRecognizer() {
+        if (isAvailable()) {
+            speechRecognizer?.destroy()
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
             speechRecognizer?.setRecognitionListener(listener)
         } else {
@@ -51,7 +58,15 @@ class SpeechRecognizerManager(
             }
         }
         try {
-            speechRecognizer?.startListening(intent)
+            if (speechRecognizer == null && isAvailable()) {
+                initializeRecognizer()
+            }
+            
+            if (speechRecognizer != null) {
+                speechRecognizer?.startListening(intent)
+            } else {
+                Log.e(TAG, "Cannot start listening: SpeechRecognizer is null")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "startListening failed: ${e.message}")
         }

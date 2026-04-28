@@ -248,13 +248,22 @@ class MainActivity : AppCompatActivity() {
         // 2. Check if Speech Recognition is available
         val available = android.speech.SpeechRecognizer.isRecognitionAvailable(this)
         sb.appendLine("System STT Available: ${if (available) "YES ✓" else "NO ✗"}")
+        if (!available) {
+            sb.appendLine("   -> ACTION: Your device is missing a Speech-to-Text engine.")
+            sb.appendLine("   -> FIX: Install 'Speech Services by Google' from Play Store.")
+        }
 
         // 3. Check if Google app is enabled (common cause of STT failure)
         try {
-            val googleAppEnabled = packageManager.getApplicationInfo("com.google.android.googlequicksearchbox", 0).enabled
+            val googleAppInfo = packageManager.getApplicationInfo("com.google.android.googlequicksearchbox", 0)
+            val googleAppEnabled = googleAppInfo.enabled
             sb.appendLine("Google App (STT Engine): ${if (googleAppEnabled) "ENABLED ✓" else "DISABLED ✗"}")
+            if (!googleAppEnabled) {
+                sb.appendLine("   -> FIX: Enable the Google app in System Settings > Apps.")
+            }
         } catch (e: Exception) {
             sb.appendLine("Google App (STT Engine): NOT FOUND ✗")
+            sb.appendLine("   -> FIX: Install the Google app or Speech Services by Google.")
         }
 
         // 4. Check Audio Manager
