@@ -8,7 +8,9 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.SpeechRecognizer
 import android.util.Log
@@ -61,6 +63,14 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
     @Volatile private var pendingFirstSpeech: String? = null
     @Volatile private var sttSupported = false
 
+    // STT error throttling — prevents the "code=8" log flood when the recognizer is busy.
+    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var consecutiveErrors = 0
+    @Volatile private var lastErrorCode = -1
+    @Volatile private var lastErrorLogMs = 0L
+    private var pendingRestart: Runnable? = null
+    @Volatile private var ttsSpeaking = false
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -79,6 +89,21 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         }
 
         ttsManager = TTSManager(this, this)
+        // CRITICAL: mute the mic while we're speaking, so Jarvis doesn't transcribe its own voice.
+        ttsManager.onSpeechStart = {
+            ttsSpeaking = true
+            speechRecognizer?.setMuted(true)
+        }
+        ttsManager.onSpeechDone = {
+            ttsSpeaking = false
+            // Small delay so the speaker tail doesn't trigger the mic.
+            mainHandler.postDelayed({
+                if (!ttsSpeaking) {
+                    speechRecognizer?.setMuted(false)
+                    if (MasterController.state.value != MasterController.State.IDLE) startListeningIfPossible()
+                }
+            }, 350)
+        }
         val model = ApiKeyManager.getModel(this)
         orchestrator = SmartGeminiOrchestrator(this, model)
         actionExecutor = ActionExecutor(this)
@@ -133,14 +158,27 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
     }
 
     private fun startListeningIfPossible() {
-        if (sttSupported) speechRecognizer?.startListening()
-        else MasterController.recordLog("STT unavailable — chat input is the only path")
+        if (!sttSupported) {
+            MasterController.recordLog("STT unavailable — chat input is the only path")
+            return
+        }
+        if (ttsSpeaking) return  // never open mic while we're talking
+        speechRecognizer?.startListening()
+    }
+
+    /** Schedule a single restart with exponential back-off (cancels any earlier pending restart). */
+    private fun scheduleRestart(delayMs: Long) {
+        pendingRestart?.let { mainHandler.removeCallbacks(it) }
+        val r = Runnable { startListeningIfPossible() }
+        pendingRestart = r
+        mainHandler.postDelayed(r, delayMs)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         super.onDestroy()
+        pendingRestart?.let { mainHandler.removeCallbacks(it) }
         speechRecognizer?.destroy()
         ttsManager.shutdown()
         scope.cancel()
@@ -188,12 +226,13 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
 
     // ------- RecognitionListener -------
     override fun onResults(results: Bundle?) {
+        consecutiveErrors = 0
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         if (!matches.isNullOrEmpty()) {
             processCommand(matches[0], MasterController.Source.VOICE)
         } else {
             MasterController.recordLog("No speech detected — restarting listener")
-            startListeningIfPossible()
+            scheduleRestart(500L)
         }
     }
 
@@ -313,12 +352,66 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         MasterController.recordReply(text)
         ttsManager.speak(text)
         MasterController.transitionTo(MasterController.State.LISTENING)
-        startListeningIfPossible()
+        // DO NOT call startListeningIfPossible() here — the TTS onDone callback (in onCreate) restarts
+        // the mic AFTER speech finishes, otherwise we hear our own voice and create an infinite echo loop.
     }
 
     override fun onError(error: Int) {
-        Log.d(TAG, "STT error code=$error")
-        startListeningIfPossible()
+        // Throttle the log spam — only print the same error code once per 2 s.
+        val now = System.currentTimeMillis()
+        if (error != lastErrorCode || (now - lastErrorLogMs) > 2000) {
+            Log.d(TAG, "STT error code=$error (${describeSttError(error)})")
+            MasterController.recordLog("STT: ${describeSttError(error)}")
+            lastErrorLogMs = now
+        }
+        if (error == lastErrorCode) consecutiveErrors++ else consecutiveErrors = 1
+        lastErrorCode = error
+
+        if (ttsSpeaking) return  // ignore everything while we're speaking — TTS done callback restarts
+
+        when (error) {
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> scheduleRestart(800L)
+            SpeechRecognizer.ERROR_NO_MATCH,
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> scheduleRestart(400L)
+            SpeechRecognizer.ERROR_NETWORK,
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> scheduleRestart(3000L)
+            SpeechRecognizer.ERROR_CLIENT,
+            SpeechRecognizer.ERROR_AUDIO -> {
+                // Exponential back-off, capped — and after 5 in a row, stop spamming and surface the issue.
+                if (consecutiveErrors >= 5) {
+                    MasterController.recordError(
+                        "Speech recognizer keeps failing (code=$error)",
+                        "After $consecutiveErrors retries the on-device recognizer is still erroring out. " +
+                        "Tap Voice Diagnostics to see what's wrong, or use the chat box to type commands."
+                    )
+                    consecutiveErrors = 0
+                    scheduleRestart(15000L)
+                } else {
+                    val delay = (1000L * (1 shl (consecutiveErrors - 1).coerceAtMost(4))).coerceAtMost(8000L)
+                    scheduleRestart(delay)
+                }
+            }
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> {
+                MasterController.recordError(
+                    "Microphone permission denied",
+                    "Open phone Settings → Apps → Jarvis → Permissions and grant the Microphone permission."
+                )
+            }
+            else -> scheduleRestart(1500L)
+        }
+    }
+
+    private fun describeSttError(code: Int): String = when (code) {
+        SpeechRecognizer.ERROR_AUDIO -> "audio recording error"
+        SpeechRecognizer.ERROR_CLIENT -> "client side error"
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "no mic permission"
+        SpeechRecognizer.ERROR_NETWORK -> "network error"
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "network timeout"
+        SpeechRecognizer.ERROR_NO_MATCH -> "no speech matched"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "recognizer busy"
+        SpeechRecognizer.ERROR_SERVER -> "server error"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "no speech heard"
+        else -> "unknown STT error $code"
     }
 
     override fun onPartialResults(partialResults: Bundle?) {

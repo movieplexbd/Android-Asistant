@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.assistant.android.R
+import com.assistant.android.core.ApiKeyManager
 import com.assistant.android.core.CrashHandler
 import com.assistant.android.core.MasterController
 import com.assistant.android.diag.BugReporter
@@ -117,6 +118,7 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
         showStoredCrashIfAny()
         showSttWarningIfNeeded()
+        showApiKeyPromptIfMissing()
         buildQuickActions()
 
         // long-press copy on every important text — so user can grab anything that's wrong
@@ -223,6 +225,35 @@ class MainActivity : AppCompatActivity() {
     private fun showSttWarningIfNeeded() {
         val available = android.speech.SpeechRecognizer.isRecognitionAvailable(this)
         sttWarningCard.visibility = if (available) View.GONE else View.VISIBLE
+    }
+
+    /**
+     * If the user has never pasted a Gemini key, show a big, friendly, unmissable dialog that takes
+     * them straight to Settings. Without this, every command just yields the cryptic
+     * "No API key set" error from the bug report.
+     */
+    private fun showApiKeyPromptIfMissing() {
+        if (ApiKeyManager.hasUserKey(this)) return
+        AlertDialog.Builder(this)
+            .setTitle("⚠ Gemini API key needed")
+            .setMessage(
+                "Jarvis needs YOUR free Gemini API key to think.\n\n" +
+                "1. Tap 'Get Free Key' below — Google AI Studio opens in your browser.\n" +
+                "2. Sign in with Google → click 'Create API key'.\n" +
+                "3. Come back here, tap 'Open Settings', paste the key, and tap Save.\n\n" +
+                "It's 100% free up to 1500 requests / day."
+            )
+            .setCancelable(false)
+            .setPositiveButton("Open Settings") { _, _ ->
+                startActivity(Intent(this, SettingsActivity::class.java))
+            }
+            .setNeutralButton("Get Free Key") { _, _ ->
+                runCatching {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
+                }.onFailure { Toast.makeText(this, "No browser found", Toast.LENGTH_SHORT).show() }
+            }
+            .setNegativeButton("Later") { d, _ -> d.dismiss() }
+            .show()
     }
 
     private fun buildQuickActions() {
@@ -393,6 +424,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.CALL_PHONE,
             Manifest.permission.SEND_SMS,
             Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.ACCESS_FINE_LOCATION
         ).forEach {
             if (ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED) needed.add(it)

@@ -23,10 +23,21 @@ class SpeechRecognizerManager(
 
     private var speechRecognizer: SpeechRecognizer? = null
     @Volatile var continuous: Boolean = true
+    /** When true (e.g. while TTS is speaking), startListening() is a no-op so we don't hear our own voice. */
+    @Volatile var muted: Boolean = false
     private val busy = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var lastStartMs = 0L
     private var pendingRestart: Runnable? = null
+
+    fun setMuted(value: Boolean) {
+        muted = value
+        if (value) {
+            pendingRestart?.let { mainHandler.removeCallbacks(it) }
+            try { speechRecognizer?.cancel() } catch (_: Exception) {}
+            busy.set(false)
+        }
+    }
 
     init { initializeRecognizer() }
 
@@ -47,6 +58,7 @@ class SpeechRecognizerManager(
     }
 
     fun startListening(language: String? = null) {
+        if (muted) return
         val now = System.currentTimeMillis()
         if (busy.get() && (now - lastStartMs) < 250) return
         if (!busy.compareAndSet(false, true)) {
@@ -66,9 +78,13 @@ class SpeechRecognizerManager(
             if (language != null) {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
             } else {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-                putExtra(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES, arrayListOf("en-US", "bn-BD"))
-                putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("bn-BD"))
+                // Multi-language: Bengali primary (matches user's region), with English (US/IN) and Hindi as alternates.
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "bn-BD")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "bn-BD")
+                putExtra(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES,
+                    arrayListOf("bn-BD", "bn-IN", "en-IN", "en-US", "hi-IN"))
+                putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES",
+                    arrayOf("bn-IN", "en-IN", "en-US", "hi-IN"))
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
