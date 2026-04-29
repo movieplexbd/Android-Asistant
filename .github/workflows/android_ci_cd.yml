@@ -1,0 +1,59 @@
+name: Android CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build debug APK
+      run: ./gradlew assembleDebug
+
+    - name: Upload debug APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Build release APK
+      run: ./gradlew assembleRelease
+      env:
+        SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+        SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+    - name: Sign release APK (if not already signed by assembleRelease)
+      run: | 
+        # This step is often redundant if assembleRelease handles signing via build.gradle
+        # but included for clarity and to handle cases where signing might be separate.
+        # If assembleRelease fails due to signing, check build.gradle and secrets.
+        # If the APK is already signed, this step will effectively do nothing or error out if re-signing is attempted without proper configuration.
+        # For this project, build.gradle handles signing, so this is mostly illustrative.
+        echo "Signing is handled by Gradle in build.gradle. Skipping manual signing step."
+
+    - name: Upload release APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: jarvis-assistant-release-apk
+        path: app/build/outputs/apk/release/app-release.apk

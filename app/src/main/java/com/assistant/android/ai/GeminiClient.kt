@@ -6,6 +6,8 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
@@ -68,7 +70,8 @@ class GeminiClient(
 
     /** List models endpoint — used to auto-discover a working model when the chosen one fails. */
     suspend fun listModels(): List<String> {
-        return try {
+        return withContext(Dispatchers.IO) {
+            try {
             val url = URL("https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey")
             val conn = url.openConnection() as HttpsURLConnection
             conn.requestMethod = "GET"
@@ -87,6 +90,7 @@ class GeminiClient(
             }
             out
         } catch (e: Exception) { emptyList() }
+        }
     }
 
     private fun buildBody(prompt: String): JSONObject = JSONObject().apply {
@@ -102,7 +106,8 @@ class GeminiClient(
         })
     }
 
-    private fun callGenerate(body: JSONObject): Result {
+    private suspend fun callGenerate(body: JSONObject): Result {
+        return withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
             return Result.Failure(
                 short = "No Gemini API key set. Open Settings and paste your free key.",
@@ -158,6 +163,7 @@ class GeminiClient(
         } catch (e: Exception) {
             Result.Failure("Unexpected error: ${e.javaClass.simpleName}",
                 "${e.javaClass.name}: ${e.message}\n${e.stackTraceToString().take(1500)}")
+        }
         }
     }
 
