@@ -24,13 +24,13 @@ class SpeechRecognizerManager(
     private var speechRecognizer: SpeechRecognizer? = null
     @Volatile var continuous: Boolean = true
     /** When true (e.g. while TTS is speaking), startListening() is a no-op so we don't hear our own voice. */
-    @Volatile var muted: Boolean = false
+    @Volatile private var muted: Boolean = false
     private val busy = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var lastStartMs = 0L
     private var pendingRestart: Runnable? = null
 
-    fun setMuted(value: Boolean) {
+    fun applyMute(value: Boolean) {
         muted = value
         if (value) {
             pendingRestart?.let { mainHandler.removeCallbacks(it) }

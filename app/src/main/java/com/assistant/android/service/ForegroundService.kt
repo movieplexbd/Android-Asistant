@@ -92,14 +92,14 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
         // CRITICAL: mute the mic while we're speaking, so Jarvis doesn't transcribe its own voice.
         ttsManager.onSpeechStart = {
             ttsSpeaking = true
-            speechRecognizer?.setMuted(true)
+            speechRecognizer?.applyMute(true)
         }
         ttsManager.onSpeechDone = {
             ttsSpeaking = false
             // Small delay so the speaker tail doesn't trigger the mic.
             mainHandler.postDelayed({
                 if (!ttsSpeaking) {
-                    speechRecognizer?.setMuted(false)
+                    speechRecognizer?.applyMute(false)
                     if (MasterController.state.value != MasterController.State.IDLE) startListeningIfPossible()
                 }
             }, 350)
