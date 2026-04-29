@@ -25,9 +25,9 @@ android {
     signingConfigs {
         release {
             storeFile file("release.keystore")
-            storePassword "dummy_store_password"
-            keyAlias "dummy_key_alias"
-            keyPassword "dummy_key_password"
+            storePassword "nexus2026"
+            keyAlias "nexuskey"
+            keyPassword "nexus2026"
             v1SigningEnabled true
             v2SigningEnabled true
         }
