@@ -1,182 +1,133 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/nexus_surface">
+    android:background="#0A0F22"
+    android:padding="20dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:orientation="vertical">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="API SETTINGS"
-            android:textColor="@color/nexus_secondary"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.2" />
+            android:text="Jarvis / Nexus settings"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Paste your own Gemini API key. Free keys: tap 'Get Free Key' to open Google AI Studio."
-            android:textColor="@color/text_dim"
+            android:text="Get free Gemini keys at aistudio.google.com/apikey — paste one per line. Multiple keys multiply your daily quota."
+            android:textColor="#B0BBD8"
             android:textSize="13sp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/openAiStudioButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="12dp"
-            android:text="Get Free Key (aistudio.google.com)"
-            android:textAllCaps="false"
-            android:textColor="@color/white"
-            app:strokeColor="@color/nexus_secondary" />
-
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="Gemini API Key"
-            android:textColor="@color/white"
-            android:textSize="14sp"
+            android:text="Gemini API key(s)"
+            android:textColor="#FFFFFF"
             android:textStyle="bold" />
 
         <EditText
-            android:id="@+id/apiKeyEdit"
+            android:id="@+id/api_key_edit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:background="@color/nexus_card"
-            android:hint="AIzaSy..."
-            android:textColorHint="#808AB0"
-            android:inputType="textPassword"
-            android:padding="14dp"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:fontFamily="monospace" />
+            android:background="#16213E"
+            android:gravity="top|start"
+            android:hint="AIzaSy...\nAIzaSy...\nAIzaSy..."
+            android:inputType="textMultiLine|textNoSuggestions"
+            android:maxLines="6"
+            android:minLines="3"
+            android:padding="12dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#5A6688"
+            android:textSize="13sp" />
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="Model name"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <EditText
-            android:id="@+id/modelEdit"
+            android:id="@+id/key_count_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:background="@color/nexus_card"
-            android:hint="gemini-2.5-flash"
-            android:textColorHint="#808AB0"
-            android:padding="14dp"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:fontFamily="monospace" />
+            android:textColor="#9FB6FF"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Default model"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/model_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="#16213E"
+            android:padding="10dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="14dp">
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/testButton"
+            <Button
+                android:id="@+id/save_btn"
                 android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_height="48dp"
-                android:layout_marginEnd="6dp"
-                android:text="Test"
-                android:textAllCaps="false" />
+                android:backgroundTint="#00E5C7"
+                android:text="Save"
+                android:textColor="#0A0F22"
+                android:textStyle="bold" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/detectButton"
-                style="@style/Widget.Material3.Button.TonalButton"
+            <Button
+                android:id="@+id/test_btn"
                 android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
-                android:layout_height="48dp"
-                android:layout_marginStart="6dp"
-                android:text="Auto-detect"
-                android:textAllCaps="false" />
+                android:backgroundTint="#5B6CFF"
+                android:text="Test first key"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/saveButton"
+        <Button
+            android:id="@+id/clear_btn"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="10dp"
-            android:text="Save"
-            android:textAllCaps="false"
-            android:textSize="16sp" />
-
-        <ProgressBar
-            android:id="@+id/progress"
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="14dp"
-            android:visibility="gone" />
+            android:layout_marginTop="10dp"
+            android:backgroundTint="#3A2030"
+            android:text="Clear all saved keys"
+            android:textColor="#FFB0B0" />
 
-        <com.google.android.material.card.MaterialCardView
+        <TextView
+            android:id="@+id/status_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            app:cardBackgroundColor="@color/nexus_card"
-            app:cardCornerRadius="16dp">
+            android:padding="12dp"
+            android:background="#16213E"
+            android:text="Save keys to start. Tap Test first key to verify reachability."
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:text="STATUS / ERROR"
-                        android:textColor="@color/nexus_secondary"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.2" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/copyStatusButton"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Copy"
-                        android:textAllCaps="false"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/statusText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Tap Test to verify your key, or Auto-detect to find a working model."
-                    android:textColor="@color/white"
-                    android:textSize="13sp"
-                    android:fontFamily="monospace"
-                    android:textIsSelectable="true" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:text="• Free tier = ~20 requests / key / day on Pro models, generous on 2.0/1.5 Flash. Local fast-path + cache cover ~80% of common commands so you'll rarely hit the limit.\n• On 429 the orchestrator hops to the next key, then to a smaller model.\n• For WhatsApp / Messenger auto-reply, also turn on Notification Access from the main screen."
+            android:textColor="#7B89B5"
+            android:textSize="12sp" />
     </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+</ScrollView>

@@ -1,9 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Jarvis / Nexus v4.4 launcher foreground.
+  Stylised "J" with arc-reactor ring + concentric circles, gradient cyan → purple.
+  108dp viewport, content padded into the safe 72dp center.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-  <path
-      android:fillColor="#FFFFFF"
-      android:pathData="M30,30h48v48h-48z"/>
+
+    <!-- Outer arc-reactor ring -->
+    <path
+        android:strokeWidth="3"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="22" android:startY="22"
+                android:endX="86"  android:endY="86">
+                <item android:offset="0.0" android:color="#FF00E5C7"/>
+                <item android:offset="1.0" android:color="#FF5B6CFF"/>
+            </gradient>
+        </aapt:attr>
+        <aapt:attr name="android:pathData">
+            <pathData>M 54,22 a 32,32 0 1 1 -0.001 0 z</pathData>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner ring -->
+    <path
+        android:pathData="M 54,30 a 24,24 0 1 1 -0.001 0 z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#A000E5C7"
+        android:fillColor="#00000000"/>
+
+    <!-- Tick marks around the outer ring -->
+    <path
+        android:pathData="M 54,18 L 54,22 M 54,86 L 54,90 M 18,54 L 22,54 M 86,54 L 90,54
+                          M 30,30 L 33,33 M 78,78 L 75,75 M 30,78 L 33,75 M 78,30 L 75,33"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FF5B6CFF"/>
+
+    <!-- Stylised "J" -->
+    <path
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="40" android:startY="34"
+                android:endX="60"  android:endY="78">
+                <item android:offset="0.0" android:color="#FFB6FFF1"/>
+                <item android:offset="0.55" android:color="#FF00E5C7"/>
+                <item android:offset="1.0" android:color="#FF5B6CFF"/>
+            </gradient>
+        </aapt:attr>
+        <aapt:attr name="android:pathData">
+            <pathData>
+                M 44,38
+                L 64,38
+                M 58,38
+                L 58,64
+                C 58,72 52,76 46,76
+                C 41,76 38,72 38,68
+            </pathData>
+        </aapt:attr>
+    </path>
+
+    <!-- Center pulse dot -->
+    <path
+        android:pathData="M 54,54 m -3,0 a 3,3 0 1 0 6,0 a 3,3 0 1 0 -6,0"
+        android:fillColor="#FFFFFFFF"/>
 </vector>

@@ -12,8 +12,8 @@ android {
         applicationId "com.assistant.android"
         minSdk 24
         targetSdk 33
-        versionCode 7
-        versionName "4.3-Nexus-Chat"
+        versionCode 8
+        versionName "4.4-Nexus-Pro"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Empty fallback — user is expected to paste their own key in Settings.

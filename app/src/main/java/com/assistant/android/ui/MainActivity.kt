@@ -74,6 +74,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var installSttButton: MaterialButton
     private lateinit var quickActionsGroup: ChipGroup
 
+    private var notifPromptShown: Boolean = false
+
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -166,6 +168,33 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         refreshButtonLabels()
         showSttWarningIfNeeded()
+        promptForNotificationAccessIfNeeded()
+    }
+
+    /**
+     * v4.4: Notification Listener access is required for WhatsApp / Messenger auto-reply
+     * and "read my last messages". Show a one-time per-launch dialog if it isn't granted.
+     */
+    private fun promptForNotificationAccessIfNeeded() {
+        if (notifPromptShown) return
+        val granted = androidx.core.app.NotificationManagerCompat
+            .getEnabledListenerPackages(this).contains(packageName)
+        if (granted) return
+        notifPromptShown = true
+        AlertDialog.Builder(this)
+            .setTitle("Enable Notification Access")
+            .setMessage("Jarvis can read and reply to your WhatsApp / Messenger / Telegram messages " +
+                    "(\"reply on WhatsApp ok thanks\", \"read my last messages\"). " +
+                    "Tap Open Settings, then turn on the toggle for Jarvis.")
+            .setPositiveButton("Open Settings") { _, _ ->
+                try {
+                    startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Open Settings → Notification access manually", Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton("Later", null)
+            .show()
     }
 
     private fun copyToClipboard(label: String, text: String) {
@@ -198,16 +227,23 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildQuickActions() {
         val actions = listOf(
+            // NEW v4.4 zero-API features
+            "🧮 Calculate 25 × 4" to "calculate 25 times 4",
+            "📱 Device status" to "device info",
+            "📝 Show my notes" to "show my notes",
+            // Existing
             "Call ammu" to "ammu ke call koro",
             "Open WhatsApp" to "open whatsapp",
+            "Reply WhatsApp" to "reply on whatsapp ok thanks",
             "Open YouTube" to "open youtube",
-            "Open Camera" to "open camera",
+            "Take selfie" to "take a selfie",
+            "Flashlight on" to "flashlight on",
+            "Screenshot" to "take screenshot",
             "What time is it" to "what time is it",
             "Set alarm 7am" to "set alarm for 7 am",
             "Wifi settings" to "open wifi settings",
             "Volume up" to "volume up",
-            "Volume down" to "volume down",
-            "Take a selfie" to "open camera"
+            "Volume down" to "volume down"
         )
         actions.forEach { (label, cmd) ->
             val chip = Chip(this).apply {

@@ -1,14 +1,11 @@
 package com.assistant.android.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.EditText
-import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -16,136 +13,111 @@ import androidx.lifecycle.lifecycleScope
 import com.assistant.android.R
 import com.assistant.android.ai.GeminiClient
 import com.assistant.android.core.ApiKeyManager
-import com.google.android.material.button.MaterialButton
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
- * Lets the user paste their own Gemini API key, test it, auto-detect a working model,
- * and save. This is what unblocks the app when the bundled key has been disabled by Google.
+ * Settings: paste one or more Gemini API keys (newline / comma / semicolon separated)
+ * and pick the default model. Includes a Test button that pings the first key live.
+ *
+ * v4.4: multi-key support so the orchestrator can rotate when one key hits its
+ * 20-req/day free-tier quota.
  */
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var keyEdit: EditText
-    private lateinit var modelEdit: EditText
+    private lateinit var modelSpinner: Spinner
     private lateinit var statusText: TextView
-    private lateinit var progress: ProgressBar
-    private lateinit var testButton: MaterialButton
-    private lateinit var saveButton: MaterialButton
-    private lateinit var detectButton: MaterialButton
-    private lateinit var openButton: MaterialButton
+    private lateinit var keyCountText: TextView
+
+    private val models = listOf(
+        "gemini-2.5-flash"  to "Gemini 2.5 Flash (recommended)",
+        "gemini-2.5-pro"    to "Gemini 2.5 Pro (slower, smarter)",
+        "gemini-2.0-flash"  to "Gemini 2.0 Flash",
+        "gemini-1.5-flash"  to "Gemini 1.5 Flash",
+        "gemini-1.5-flash-8b" to "Gemini 1.5 Flash 8B (lightest)",
+        "gemini-1.5-pro"    to "Gemini 1.5 Pro"
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        keyEdit = findViewById(R.id.apiKeyEdit)
-        modelEdit = findViewById(R.id.modelEdit)
-        statusText = findViewById(R.id.statusText)
-        progress = findViewById(R.id.progress)
-        testButton = findViewById(R.id.testButton)
-        saveButton = findViewById(R.id.saveButton)
-        detectButton = findViewById(R.id.detectButton)
-        openButton = findViewById(R.id.openAiStudioButton)
+        keyEdit = findViewById(R.id.api_key_edit)
+        modelSpinner = findViewById(R.id.model_spinner)
+        statusText = findViewById(R.id.status_text)
+        keyCountText = findViewById(R.id.key_count_text)
 
-        // Pre-fill with current values
-        if (ApiKeyManager.hasUserKey(this)) {
-            keyEdit.setText(ApiKeyManager.getApiKey(this))
+        val saveBtn = findViewById<Button>(R.id.save_btn)
+        val testBtn = findViewById<Button>(R.id.test_btn)
+        val clearBtn = findViewById<Button>(R.id.clear_btn)
+
+        // Pre-fill: each saved key on its own line.
+        keyEdit.setText(ApiKeyManager.getAllKeys(this).joinToString("\n"))
+
+        ArrayAdapter(this, android.R.layout.simple_spinner_item, models.map { it.second }).also { adapter ->
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            modelSpinner.adapter = adapter
         }
-        modelEdit.setText(ApiKeyManager.getModel(this))
+        val current = ApiKeyManager.getModel(this)
+        val idx = models.indexOfFirst { it.first == current }.coerceAtLeast(0)
+        modelSpinner.setSelection(idx)
 
-        testButton.setOnClickListener { runTest() }
-        detectButton.setOnClickListener { autoDetect() }
-        saveButton.setOnClickListener { save() }
-        openButton.setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
-        }
-        findViewById<MaterialButton>(R.id.copyStatusButton).setOnClickListener {
-            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("Jarvis status", statusText.text.toString()))
-            Toast.makeText(this, "Status copied", Toast.LENGTH_SHORT).show()
-        }
-    }
+        updateStatusBadge()
 
-    private fun setBusy(busy: Boolean) {
-        progress.visibility = if (busy) View.VISIBLE else View.GONE
-        testButton.isEnabled = !busy
-        detectButton.isEnabled = !busy
-        saveButton.isEnabled = !busy
-    }
-
-    private fun runTest() {
-        val key = keyEdit.text.toString().trim()
-        val model = modelEdit.text.toString().trim().ifEmpty { "gemini-2.5-flash" }
-        if (key.isBlank()) {
-            statusText.text = "Please paste a key first."
-            return
-        }
-        setBusy(true)
-        statusText.text = "Testing key + model '$model'..."
-        lifecycleScope.launch {
-            val client = GeminiClient(key, model)
-            val result = withContext(Dispatchers.IO) { client.ping() }
-            setBusy(false)
-            statusText.text = when (result) {
-                is GeminiClient.Result.Success ->
-                    "✓ Working!  Model='$model'  Reply: ${result.text.take(100)}"
-                is GeminiClient.Result.Failure ->
-                    "✗ ${result.short}\n\n— Detail —\n${result.detail.take(1500)}"
+        saveBtn.setOnClickListener {
+            val raw = keyEdit.text.toString().trim()
+            if (raw.isEmpty()) {
+                Toast.makeText(this, "Paste at least one Gemini API key", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
             }
+            ApiKeyManager.setApiKeys(this, raw)
+            ApiKeyManager.setModel(this, models[modelSpinner.selectedItemPosition].first)
+            updateStatusBadge()
+            Toast.makeText(this, "Saved ${ApiKeyManager.getAllKeys(this).size} key(s)", Toast.LENGTH_SHORT).show()
         }
-    }
 
-    private fun autoDetect() {
-        val key = keyEdit.text.toString().trim()
-        if (key.isBlank()) {
-            statusText.text = "Paste a key first."
-            return
-        }
-        setBusy(true)
-        statusText.text = "Listing models for this key..."
-        lifecycleScope.launch {
-            val client = GeminiClient(key, "gemini-2.5-flash")
-            val models = withContext(Dispatchers.IO) { client.listModels() }
-            if (models.isEmpty()) {
-                setBusy(false)
-                statusText.text = "Could not list models — key may be invalid or no internet.\nTry the Test button to see the exact error."
-                return@launch
+        testBtn.setOnClickListener {
+            val keys = parseKeys(keyEdit.text.toString())
+            if (keys.isEmpty()) {
+                statusText.text = "No keys entered."
+                return@setOnClickListener
             }
-            // Pick first 'flash' model that's not deprecated/preview
-            val preferred = models.firstOrNull {
-                it.contains("flash", true) && !it.contains("deprecated", true) && !it.contains("preview", true)
-            } ?: models.firstOrNull { it.contains("flash", true) }
-              ?: models.first()
-            statusText.text = "Found ${models.size} models. Trying '$preferred'..."
-            client.modelName = preferred
-            val ping = withContext(Dispatchers.IO) { client.ping() }
-            setBusy(false)
-            when (ping) {
-                is GeminiClient.Result.Success -> {
-                    modelEdit.setText(preferred)
-                    statusText.text = "✓ Auto-detected working model: $preferred\n\nAvailable models:\n" +
-                        models.joinToString("\n") { "  • $it" }
-                }
-                is GeminiClient.Result.Failure -> {
-                    statusText.text = "Model '$preferred' picked but failed: ${ping.short}\n\nAll listed models:\n" +
-                        models.joinToString("\n") { "  • $it" }
+            statusText.text = "Testing first key (${ApiKeyManager.mask(keys.first())}) …"
+            val model = models[modelSpinner.selectedItemPosition].first
+            lifecycleScope.launch {
+                val client = GeminiClient(keys.first(), model)
+                val result = client.ping()
+                runOnUiThread {
+                    statusText.text = when (result) {
+                        is GeminiClient.Result.Success -> "✓ Key works: ${result.text.take(80)}"
+                        is GeminiClient.Result.Failure ->
+                            "✗ ${result.short}\nDetails: ${result.detail.take(220)}"
+                    }
                 }
             }
         }
+
+        clearBtn.setOnClickListener {
+            ApiKeyManager.clearApiKey(this)
+            keyEdit.setText("")
+            updateStatusBadge()
+            statusText.text = "Saved keys cleared."
+        }
     }
 
-    private fun save() {
-        val key = keyEdit.text.toString().trim()
-        val model = modelEdit.text.toString().trim().ifEmpty { "gemini-2.5-flash" }
-        if (key.isBlank()) {
-            statusText.text = "Cannot save — paste a key first."
-            return
+    private fun parseKeys(raw: String): List<String> =
+        raw.split("\n", ",", ";").map { it.trim() }.filter { it.isNotBlank() }.distinct()
+
+    private fun updateStatusBadge() {
+        val n = ApiKeyManager.getAllKeys(this).size
+        keyCountText.text = when (n) {
+            0 -> "No keys saved (using build-time fallback only)"
+            1 -> "1 key saved — add more to extend free-tier quota"
+            else -> "$n keys saved — orchestrator will rotate on 429 errors"
         }
-        ApiKeyManager.setApiKey(this, key)
-        ApiKeyManager.setModel(this, model)
-        Toast.makeText(this, "Saved. Restart the assistant for it to pick up the new key.", Toast.LENGTH_LONG).show()
-        statusText.text = "✓ Saved. Key=${ApiKeyManager.mask(key)}  Model=$model\nNow tap 'Stop Assistant' then 'Start Assistant' on the main screen."
+        keyCountText.visibility = View.VISIBLE
     }
+
+    override fun onSupportNavigateUp(): Boolean { finish(); return true }
 }

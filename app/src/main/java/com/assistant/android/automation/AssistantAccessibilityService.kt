@@ -85,6 +85,26 @@ class AssistantAccessibilityService : AccessibilityService() {
     fun openNotifications(): Boolean = performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
     fun openQuickSettings(): Boolean = performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
 
+    /** Takes a system screenshot. Requires API 28+. */
+    fun takeScreenshot(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            performGlobalAction(9 /* GLOBAL_ACTION_TAKE_SCREENSHOT */)
+        } else {
+            Log.w(TAG, "takeScreenshot requires API 28+ (current=${Build.VERSION.SDK_INT})")
+            false
+        }
+    }
+
+    /** Locks the device screen. Requires API 28+. */
+    fun lockScreen(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            performGlobalAction(8 /* GLOBAL_ACTION_LOCK_SCREEN */)
+        } else {
+            Log.w(TAG, "lockScreen requires API 28+ (current=${Build.VERSION.SDK_INT})")
+            false
+        }
+    }
+
     companion object {
         private const val TAG = "A11yService"
         @Volatile var instance: AssistantAccessibilityService? = null

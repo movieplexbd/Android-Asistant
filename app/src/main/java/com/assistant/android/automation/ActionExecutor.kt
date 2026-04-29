@@ -6,19 +6,24 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.provider.AlarmClock
-import android.provider.MediaStore
 import android.provider.Settings
 import android.telephony.SmsManager
 import android.util.Log
 import android.widget.Toast
 import com.assistant.android.contacts.ContactResolver
 import com.assistant.android.core.MasterController
+import com.assistant.android.feature.Calculator
+import com.assistant.android.feature.DeviceInfoProvider
+import com.assistant.android.feature.NotesStore
 import org.json.JSONObject
 
 /**
- * Executes a single intent. Supports the v4 NEXUS contract — including routines (chained intents)
- * and next_step follow-ups. Resolves contact names (e.g. "ammu", "boss") to phone numbers
- * via ContactResolver before dialing or texting.
+ * Executes a single intent. Supports the v4.4 NEXUS contract — chained intents,
+ * camera-auto-shutter, flashlight, screenshot, lock screen, WhatsApp auto-reply,
+ * and the new feature intents (calc, device_info, note_add, note_read).
+ *
+ * Resolves contact names (e.g. "ammu", "boss") to phone numbers via ContactResolver
+ * before dialing or texting.
  */
 class ActionExecutor(private val context: Context) {
 
@@ -48,24 +53,101 @@ class ActionExecutor(private val context: Context) {
             "volume_up" -> changeVolume(AudioManager.ADJUST_RAISE)
             "volume_down" -> changeVolume(AudioManager.ADJUST_LOWER)
             "mute" -> changeVolume(AudioManager.ADJUST_MUTE)
-            "camera", "open_camera" -> openCamera()
-            "search", "web_search" -> webSearch(target)
+
+            // Camera family
+            "camera", "open_camera" -> CameraController.openCameraApp(context)
+            "take_photo", "capture_photo" -> CameraController.capturePhotoAuto(context, useFrontCamera = false)
+            "take_selfie" -> CameraController.capturePhotoAuto(context, useFrontCamera = true)
+            "record_video" -> CameraController.openVideoCamera(context)
+
+            // Flashlight
+            "flashlight_on", "torch_on" -> FlashlightController.on(context)
+            "flashlight_off", "torch_off" -> FlashlightController.off(context)
+            "flashlight_toggle", "torch_toggle" -> FlashlightController.toggle(context)
+
+            "search", "web_search" -> webSearch(target ?: message)
             "navigate" -> navigate(target)
             "home" -> a11yAction { it.goHome() }
             "back" -> a11yAction { it.goBack() }
+            "recents" -> a11yAction { it.openRecents() }
             "scroll_up" -> a11yAction { it.scrollUp() }
             "scroll_down" -> a11yAction { it.scrollDown() }
             "tap_text" -> if (target != null) a11yAction { it.clickOnText(target) } else false
+            "screenshot" -> a11yAction { it.takeScreenshot() }
+            "lock_screen" -> a11yAction { it.lockScreen() }
+            "notifications" -> a11yAction { it.openNotifications() }
+            "quick_settings" -> a11yAction { it.openQuickSettings() }
+
+            // WhatsApp / messaging auto-reply (uses NotificationListener + RemoteInput)
+            "whatsapp_reply", "auto_reply" -> WhatsAppReplyHelper.reply(context, message ?: "")
+            "read_messages" -> readLastMessages()
+
+            // ── NEW FEATURES ────────────────────────────────────────────────
+            "calc", "calculate" -> doCalc(message ?: target)
+            "device_info", "battery", "ram", "storage" -> doDeviceInfo()
+            "note_add", "save_note" -> doNoteAdd(message ?: target)
+            "note_read", "show_notes", "list_notes" -> doNoteRead()
+
             "routine" -> true // Routine engine handles steps separately.
             "translate" -> handleTranslation(message, target)
-            "vision" -> true // Vision is triggered from UI/camera flow.
+            "vision" -> true
             "biometric_auth" -> requestBiometricAuth(message)
-            "info", "answer", "chat", "none", "" -> true
+            "info_time", "info_date", "info", "answer", "chat", "none", "" -> true
             else -> {
                 Log.w(tag, "Unknown intent: $intent")
                 false
             }
         }
+    }
+
+    private fun doCalc(expression: String?): Boolean {
+        val expr = expression ?: return false
+        val result = Calculator.evaluate(expr)
+        return if (result != null) {
+            MasterController.recordLog("🧮 $expr = $result")
+            MasterController.recordReply("$expr equals $result")
+            true
+        } else {
+            MasterController.recordError("Could not evaluate", "Calculator could not parse: $expr")
+            false
+        }
+    }
+
+    private fun doDeviceInfo(): Boolean {
+        val summary = DeviceInfoProvider.summary(context)
+        MasterController.recordLog("📱 $summary")
+        MasterController.recordReply(DeviceInfoProvider.spokenSummary(context))
+        return true
+    }
+
+    private fun doNoteAdd(text: String?): Boolean {
+        if (text.isNullOrBlank()) {
+            MasterController.recordError("Empty note", "I had no text to save.")
+            return false
+        }
+        NotesStore.add(context, text)
+        MasterController.recordLog("📝 Note saved: $text")
+        return true
+    }
+
+    private fun doNoteRead(): Boolean {
+        val summary = NotesStore.spokenSummary(context, max = 5)
+        MasterController.recordLog("📒 ${summary.lineSequence().count()} note line(s)")
+        MasterController.recordReply(summary)
+        return true
+    }
+
+    private fun readLastMessages(): Boolean {
+        val summary = WhatsAppReplyHelper.lastMessageSummary()
+        if (summary == null) {
+            MasterController.recordError(
+                "No recent messages captured",
+                "Either Notification Access isn't granted, or no message has arrived since I started listening."
+            )
+            return false
+        }
+        MasterController.recordLog("📬 Last message: $summary")
+        return true
     }
 
     private fun makePhoneCall(rawTarget: String?): Boolean {
@@ -182,14 +264,14 @@ class ActionExecutor(private val context: Context) {
             "volume_up" -> changeVolume(AudioManager.ADJUST_RAISE)
             "volume_down" -> changeVolume(AudioManager.ADJUST_LOWER)
             "mute" -> changeVolume(AudioManager.ADJUST_MUTE)
-            "open_camera" -> openCamera()
+            "open_camera" -> CameraController.openCameraApp(context)
+            "take_photo" -> CameraController.capturePhotoAuto(context)
+            "take_selfie" -> CameraController.capturePhotoAuto(context, useFrontCamera = true)
+            "flashlight_on" -> FlashlightController.on(context)
+            "flashlight_off" -> FlashlightController.off(context)
+            "screenshot" -> a11yAction { it.takeScreenshot() }
             else -> false
         }
-    }
-
-    private fun openCamera(): Boolean {
-        val i = Intent(MediaStore.ACTION_IMAGE_CAPTURE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return runCatching { context.startActivity(i); true }.getOrDefault(false)
     }
 
     private fun webSearch(query: String?): Boolean {
@@ -206,7 +288,6 @@ class ActionExecutor(private val context: Context) {
             Uri.parse("google.navigation:q=" + Uri.encode(destination)))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(i); true }.getOrElse {
-            // fallback to maps web
             val web = Intent(Intent.ACTION_VIEW,
                 Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(destination)))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -231,7 +312,7 @@ class ActionExecutor(private val context: Context) {
         if (svc == null) {
             MasterController.recordError(
                 "Accessibility service not enabled",
-                "Settings → Accessibility → Jarvis Automation must be turned on for tap/scroll/back/home actions."
+                "Settings → Accessibility → Jarvis Automation must be turned on for tap/scroll/back/home/screenshot actions."
             )
             return false
         }
@@ -257,7 +338,9 @@ class ActionExecutor(private val context: Context) {
             "messenger" to "com.facebook.orca",
             "instagram" to "com.instagram.android",
             "chrome" to "com.android.chrome",
+            "browser" to "com.android.chrome",
             "gmail" to "com.google.android.gm",
+            "mail" to "com.google.android.gm",
             "maps" to "com.google.android.apps.maps",
             "spotify" to "com.spotify.music",
             "telegram" to "org.telegram.messenger",
@@ -270,10 +353,12 @@ class ActionExecutor(private val context: Context) {
             "camera" to "com.android.camera",
             "calendar" to "com.google.android.calendar",
             "clock" to "com.google.android.deskclock",
+            "alarm" to "com.google.android.deskclock",
             "contacts" to "com.google.android.contacts",
             "calculator" to "com.google.android.calculator",
             "drive" to "com.google.android.apps.docs",
             "photos" to "com.google.android.apps.photos",
+            "gallery" to "com.google.android.apps.photos",
             "play store" to "com.android.vending",
             "playstore" to "com.android.vending"
         )
