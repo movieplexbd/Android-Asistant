@@ -338,7 +338,7 @@ class ForegroundService : Service(), RecognitionListener, TTSManager.OnInitListe
     override fun onBufferReceived(buffer: ByteArray?) {}
     override fun onEvent(eventType: Int, params: Bundle?) {}
 
-    override fun onTtsInit(success: Boolean) {
+    override fun onTTSInitialized(success: Boolean) {
         ttsReady = success
         if (!success) {
             MasterController.recordError("TTS init failed", "TextToSpeech engine could not initialise — speech will be silent. Make sure a TTS engine is installed.")
