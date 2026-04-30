@@ -137,7 +137,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SectionTitle(title: String) {
+fun SectionTitle(title: String) {
     Text(
         text = title,
         fontSize = 13.sp,
