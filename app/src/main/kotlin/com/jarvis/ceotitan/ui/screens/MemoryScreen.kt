@@ -3,7 +3,7 @@ package com.jarvis.ceotitan.ui.screens
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.collectAsLazyPagingItems
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -67,7 +67,7 @@ fun MemoryScreen(
             }
 
             GlassCard(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceAround) {
                     MemoryStat("Total", "${interactions.size}", Icons.Default.Memory, JarvisBlue)
                     MemoryStat("Today", "${interactions.count { System.currentTimeMillis() - it.timestamp < 86400000L }}", Icons.Default.Today, JarvisSuccess)
                     MemoryStat("Cloud", "${interactions.count { it.brainLayer == "CLOUD" }}", Icons.Default.Cloud, JarvisAccent)
@@ -90,8 +90,7 @@ fun MemoryScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(interactions.size) { index ->
-                        val item = interactions[index]
+                    items(interactions) { item ->
                         InteractionCard(item)
                     }
                 }
