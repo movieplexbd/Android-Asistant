@@ -1,136 +1,128 @@
 name: Build JARVIS CEO TITAN APK
 
-  on:
-    push:
-      branches: [ main, master ]
-    pull_request:
-      branches: [ main, master ]
-    workflow_dispatch:
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-  jobs:
-    build:
-      name: Build Release APK
-      runs-on: ubuntu-22.04
+jobs:
+  build:
+    name: Build Release APK
+    runs-on: ubuntu-22.04
 
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Set up JDK 17
-          uses: actions/setup-java@v4
-          with:
-            java-version: '17'
-            distribution: 'temurin'
-            cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-        - name: Accept Android SDK Licenses
-          run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-        - name: Install Android SDK Components
-          run: |
-            $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" || true
+      - name: Install Android SDK Components
+        run: |
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" || true
 
-        - name: Grant execute permission for gradlew
-          run: chmod +x ./gradlew
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
 
-        - name: Cache Gradle packages
-          uses: actions/cache@v4
-          with:
-            path: |
-              ~/.gradle/caches
-              ~/.gradle/wrapper
-            key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-            restore-keys: |
-              ${{ runner.os }}-gradle-
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-        - name: Create Keystore Directory
-          run: mkdir -p app/keystore
+      - name: Create Keystore Directory
+        run: mkdir -p app/keystore
 
-        - name: Generate Release Keystore
-          run: |
-            keytool -genkey -v \
-              -keystore app/keystore/jarvis-release.jks \
-              -alias jarvis \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass jarvis2024 \
-              -keypass jarvis2024 \
-              -dname "CN=JARVIS CEO TITAN, OU=Android, O=FAN-ZON, L=Dhaka, S=Dhaka, C=BD"
+      - name: Generate Release Keystore
+        run: |
+          keytool -genkey -v \
+            -keystore app/keystore/jarvis-release.jks \
+            -alias jarvis \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass jarvis2024 \
+            -keypass jarvis2024 \
+            -dname "CN=JARVIS CEO TITAN, OU=Android, O=FAN-ZON, L=Dhaka, S=Dhaka, C=BD"
 
-        - name: Build Debug APK
-          run: ./gradlew assembleDebug --no-daemon --stacktrace
-          env:
-            ANDROID_HOME: ${{ env.ANDROID_HOME }}
-            GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
 
-        - name: Build Release APK
-          run: ./gradlew assembleRelease --no-daemon --stacktrace
-          env:
-            ANDROID_HOME: ${{ env.ANDROID_HOME }}
-            KEYSTORE_PASSWORD: jarvis2024
-            KEY_ALIAS: jarvis
-            KEY_PASSWORD: jarvis2024
-            GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        env:
+          KEYSTORE_PASSWORD: jarvis2024
+          KEY_ALIAS: jarvis
+          KEY_PASSWORD: jarvis2024
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
 
-        - name: List APK files
-          run: |
-            echo "=== Debug APK ==="
-            find app/build/outputs/apk/debug -name "*.apk" -exec ls -lh {} \;
-            echo "=== Release APK ==="
-            find app/build/outputs/apk/release -name "*.apk" -exec ls -lh {} \;
+      - name: List APK files
+        if: success()
+        run: |
+          echo "=== Debug APK ==="
+          find app/build/outputs/apk/debug -name "*.apk" -exec ls -lh {} \;
+          echo "=== Release APK ==="
+          find app/build/outputs/apk/release -name "*.apk" -exec ls -lh {} \;
 
-        - name: Upload Debug APK
-          uses: actions/upload-artifact@v4
-          with:
-            name: JARVIS-CEO-TITAN-Debug-v1.0.${{ github.run_number }}
-            path: app/build/outputs/apk/debug/*.apk
-            retention-days: 30
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: JARVIS-CEO-TITAN-Debug-v1.0.${{ github.run_number }}
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
 
-        - name: Upload Release APK
-          uses: actions/upload-artifact@v4
-          with:
-            name: JARVIS-CEO-TITAN-Release-v1.0.${{ github.run_number }}
-            path: app/build/outputs/apk/release/*.apk
-            retention-days: 30
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: JARVIS-CEO-TITAN-Release-v1.0.${{ github.run_number }}
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
 
-        - name: Create GitHub Release
-          if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-          uses: softprops/action-gh-release@v2
-          with:
-            tag_name: v1.0.${{ github.run_number }}
-            name: "JARVIS CEO TITAN v1.0.${{ github.run_number }}"
-            body: |
-              ## ❤️ JARVIS CEO TITAN - Complete Android AI Assistant
+      - name: Create GitHub Release
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "JARVIS CEO TITAN v1.0.${{ github.run_number }}"
+          body: |
+            ## JARVIS CEO TITAN - AI Assistant APK
 
-              ### 🚀 Features:
-              - 6-Layer Speech Understanding (Bangla + English + Banglish)
-              - 3-Layer AI Brain: Local → Cache → Cloud (Gemini + Groq + OpenRouter)
-              - Offline phone control (flashlight, volume, apps, camera)
-              - WhatsApp & YouTube automation via Accessibility Service
-              - Fuzzy matching for unclear speech & village accent
-              - Business CEO Mode (FAN-ZON notes)
-              - Premium Glass UI with floating AI orb & waveform
-              - Android 11+ | Xiaomi optimized
+            ### Features:
+            - 6-Layer Speech Understanding (Bangla + English + Banglish)
+            - 3-Layer AI Brain: Local -> Cache -> Cloud (Gemini + Groq + OpenRouter)
+            - Offline phone control (flashlight, volume, apps, camera)
+            - WhatsApp and YouTube automation via Accessibility Service
+            - Fuzzy matching for unclear speech and village accent
+            - Business CEO Mode (FAN-ZON notes)
+            - Premium Glass UI with floating AI orb
+            - Android 11+ Xiaomi optimized
 
-              ### 📲 Installation:
-              1. Download the Release APK below
-              2. Enable "Install from unknown sources" in Settings
-              3. Install the APK
-              4. Grant microphone permission
-              5. (Optional) Enable Accessibility Service for full automation
-              6. Add Gemini/Groq API keys in Settings for AI features
-
-              ### 🔒 Permissions needed:
-              - Microphone (voice commands)
-              - Camera (photos + OCR)
-              - Contacts (calls + messages)
-
-            files: |
-              app/build/outputs/apk/release/*.apk
-              app/build/outputs/apk/debug/*.apk
-            draft: false
-            prerelease: false
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
+            ### Installation:
+            1. Download the Release APK
+            2. Enable Install from unknown sources in Settings
+            3. Install APK and grant permissions
+            4. Add Gemini/Groq API keys in Settings for AI
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/debug/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
