@@ -1,5 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Jarvis Assistant</string>
-    <string name="title_main">Jarvis AI Assistant</string>
-    <string name="status_idle">Tap to start</string>
+    <string name="app_name">JARVIS CEO TITAN</string>
+    <string name="app_description">Next-Gen AI Assistant for Android</string>
+    <string name="accessibility_service_description">JARVIS CEO TITAN uses Accessibility Service to automate apps like WhatsApp and YouTube, control the screen, and execute voice commands hands-free.</string>
 </resources>

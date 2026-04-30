@@ -1,14 +1,14 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.AndroidAssistant" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/nexus_primary</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorPrimaryContainer">@color/nexus_primary_container</item>
-        <item name="colorOnPrimaryContainer">@color/white</item>
-        <item name="colorSecondary">@color/nexus_secondary</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <item name="colorSurface">@color/nexus_surface</item>
-        <item name="colorOnSurface">@color/white</item>
-        <item name="android:statusBarColor" tools:targetApi="l">@color/nexus_primary</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.JarvisCEOTitan" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+    </style>
+
+    <style name="Theme.JarvisCEOTitan.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0A84FF</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:drawable/ic_btn_speak_now</item>
+        <item name="postSplashScreenTheme">@style/Theme.JarvisCEOTitan</item>
     </style>
 </resources>
